@@ -1,0 +1,44 @@
+---
+description: Конституция проекта — каталог объектов с локальной LLM
+alwaysApply: true
+---
+
+# Каталог объектов — ключевые правила
+
+Полная документация: `docs/CONSTITUTION.md`, план MVP: `docs/MVP_PLAN.md`.
+
+## Стек (не менять без обсуждения)
+
+- Frontend: React 18 + **TypeScript** + Vite + Tailwind + TanStack Query
+- Backend: Node.js + **Fastify** + **LangGraph.js** + Zod
+- AI: **Ollama** local — vision `qwen2-vl:7b`, embed `nomic-embed-text`
+- DB: **MongoDB 7** local
+- Monorepo: `frontend/`, `backend/`, `shared/`
+
+## Принципы
+
+- Только **русский** язык (UI, промпты, контент)
+- **Локально** — без облачных API
+- **JavaScript/TS only** — Python не использовать
+- Vision и embed **последовательно** (RTX 4060 8 GB)
+- Обработка **async** — статусы pending → processing → ready | failed
+
+## MVP scope
+
+В scope: upload, LangGraph pipeline, catalog, text search (hybrid).
+Вне scope: photo search, auth, batch upload, edit LLM fields.
+
+## Структура кода
+
+- Общие типы → `shared/types/`
+- API routes → `backend/src/routes/`
+- LangGraph → `backend/src/graph/`
+- Ollama → `backend/src/services/ollama.ts`
+- Frontend pages → `frontend/src/pages/`
+
+## При реализации
+
+- Следовать этапам из `docs/MVP_PLAN.md` по порядку
+- Один этап = один логический коммит
+- Минимальный diff, без over-engineering
+- Не добавлять фичи из backlog без явного запроса
