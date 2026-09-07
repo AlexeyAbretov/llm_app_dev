@@ -1,8 +1,10 @@
 import Fastify from "fastify";
 import { loadConfig } from "./config.js";
+import { JobStore } from "./jobs.js";
 import { startPoller } from "./poller.js";
 
 const config = loadConfig();
+const store = new JobStore(config.DATA_DIR);
 
 const app = Fastify({
   logger: {
@@ -12,10 +14,10 @@ const app = Fastify({
 
 app.get("/health", async () => ({ status: "ok" }));
 
-const poller = startPoller(config, app.log);
+const poller = startPoller(config, app.log, store);
 
 const shutdown = async (): Promise<void> => {
-  clearInterval(poller);
+  poller.stop();
   await app.close();
 };
 

@@ -9,6 +9,7 @@ build/
 .env
 .env.local
 pipeline/.env
+pipeline/data/
 
 # Uploads & runtime data
 uploads/

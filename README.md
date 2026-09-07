@@ -12,7 +12,7 @@
 ## Оркестратор пайплайна
 
 ```bash
-copy pipeline\.env.example pipeline\.env   # Windows
+copy pipeline\.env.example pipeline\.env   # Windows, затем вписать GITHUB_TOKEN и CURSOR_API_KEY
 docker compose -f docker-compose.pipeline.yml up --build
 # http://127.0.0.1:3020/health
 ```
