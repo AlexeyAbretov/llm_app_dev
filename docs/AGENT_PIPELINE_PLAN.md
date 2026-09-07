@@ -124,8 +124,8 @@ Issue → план → PR → проверка → draft release → апрув 
 
 ### Проверка
 
-- [ ] Label `needs-plan` → старт агента, комментарий с id (нужны `GITHUB_TOKEN` и `CURSOR_API_KEY` в `pipeline/.env`)
-- [ ] Повторный полл не создаёт второго агента на ту же пару
+- [x] Label `needs-plan` → старт агента, комментарий с id (нужны `GITHUB_TOKEN` и `CURSOR_API_KEY` в `.env`)
+- [x] Повторный полл не создаёт второго агента на ту же пару
 
 ---
 
