@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Каталог объектов — ключевые правила
 
-Полная документация: `docs/CONSTITUTION.md`, план MVP: `docs/MVP_PLAN.md`.
+Полная документация: `docs/CONSTITUTION.md`, план каталога: `docs/MVP_PLAN.md`, пайплайн: `docs/AGENT_PIPELINE.md`.
 
 ## Стек (не менять без обсуждения)
 
@@ -18,7 +18,7 @@ alwaysApply: true
 ## Принципы
 
 - Только **русский** язык (UI, промпты, контент)
-- **Локально** — без облачных API
+- **Продукт локально** — без облачных LLM API для каталога. GitHub + Cursor Cloud — только для процесса (P1a)
 - **JavaScript/TS only** — Python не использовать
 - Vision и embed **последовательно** (RTX 4060 8 GB)
 - Обработка **async** — статусы pending → processing → ready | failed
@@ -38,8 +38,9 @@ alwaysApply: true
 
 ## При реализации
 
-- Следовать этапам из `docs/MVP_PLAN.md` по порядку
-- **Каждый этап — ветка `stage/N-...`**, merge в `main` только после подтверждения (см. `git-workflow.mdc`)
+- Каталог: этапы `docs/MVP_PLAN.md`, ветки `stage/N-...`
+- Пайплайн: этапы `docs/AGENT_PIPELINE_PLAN.md`, ветки `pipeline/N-...`
+- **Не смешивать треки**; merge в `main` только после подтверждения (см. `git-workflow.mdc`)
 - Один этап = одна ветка; внутри ветки — один или несколько коммитов
 - Минимальный diff, без over-engineering
 - Не добавлять фичи из backlog без явного запроса

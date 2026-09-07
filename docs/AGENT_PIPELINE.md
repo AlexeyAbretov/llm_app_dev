@@ -1,0 +1,141 @@
+# Агентный пайплайн — контракт
+
+> Процесс разработки: GitHub + Cursor Cloud + локальный оркестратор в Docker.  
+> Продукт (каталог, MongoDB, Ollama) остаётся на машине разработчика.
+
+Полный план этапов: [AGENT_PIPELINE_PLAN.md](./AGENT_PIPELINE_PLAN.md).  
+Принципы продукта: [CONSTITUTION.md](./CONSTITUTION.md).
+
+## 1. Целевая схема
+
+```
+GitHub          issues, PR, Actions (lint/unit), tags, Releases
+Cursor Cloud    Аналитик → Разработчик → Тестировщик → Релиз-менеджер
+        ▲
+        │ HTTPS API (исходящий с ПК, без туннеля)
+        │
+Docker (дома)
+  orchestrator     поллинг GitHub, вызов Cursor SDK, очередь джоб, UI
+  deployer         docker compose каталога (единственный с docker.sock)
+  pipeline-ui      очередь, статусы, ссылки на логи (отдельный порт)
+Ollama на хосте    GPU, не в compose оркестратора
+```
+
+Git — **только GitHub** (`origin`). Локальная Gitea не используется.
+
+## 2. Роли
+
+| Роль | Где | Делает | Не делает |
+|------|-----|--------|-----------|
+| Аналитик | Cursor Cloud | План в комментарии issue по конституции и MVP | Код, merge, деплой |
+| Разработчик | Cursor Cloud | Ветка `issue/<n>-…`, PR | Merge в `main`, деплой |
+| Тестировщик | Cloud + GitHub Actions | Ревью diff, unit/lint, баг-issues | Утверждать E2E vision без локального прогона |
+| Релиз-менеджер | Cursor Cloud | Changelog, draft Release, запрос апрува | Merge/publish/tag без апрува человека |
+| Девопс | Локальный deployer | `compose up` по tag/Release, статус в GitHub | Работать из облака |
+
+Цикл аналитик → разработчик → тестировщик при новых багах, лимит **3** круга (`fix-round`), затем `needs-human`.
+
+## 3. Labels и milestone
+
+### Тип (взаимоисключающие)
+
+- `bug`
+- `feature`
+
+### Приоритет (взаимоисключающие)
+
+- `p0` … `p3`
+
+### Состояние пайплайна
+
+| Label | Смысл |
+|-------|--------|
+| `needs-plan` | Ждёт аналитика |
+| `ready-for-dev` | План есть, можно кодить |
+| `in-dev` | Разработчик работает |
+| `in-qa` | Есть PR, идёт проверка |
+| `ready-for-release` | RM собрал пакет, ждёт апрув |
+| `release-approved` | Человек разрешил merge/tag/publish |
+| `deployed` | Локальный деплой успешен |
+| `deploy-failed` | Локальный деплой упал |
+| `needs-human` | Автоматика остановилась |
+
+**Milestone** = версия (`v0.3`) + due date (дата релиза).
+
+## 4. Апрув релиза (как RM сообщает человеку)
+
+Облачный агент не пишет в личный чат Cursor. Канал — **GitHub**.
+
+Обязательные действия релиз-менеджера:
+
+1. Label `ready-for-release`, **assignee** — владелец репо.
+2. Комментарий с чеклистом: состав milestone, ссылки на PR, статус CI, риски, явная фраза что нужен апрув.
+3. **Request review** на открытые PR, входящие в релиз.
+4. **Draft GitHub Release** (без publish).
+
+Человек апрувит одним из способов (достаточно одного, зафиксировать при реализации P6):
+
+- label `release-approved`, или
+- Approve review + Environment `release` required reviewers (когда появится Actions).
+
+До апрува: **нет** merge в `main`, **нет** tag, **нет** Publish Release, **нет** деплоя.
+
+Первая волна: merge в `main` делает человек; агент готовит notes и draft. Автоmerge — только после отдельного решения.
+
+## 5. Оркестратор
+
+- Каталог кода: `pipeline/` (Fastify + TypeScript), compose **отдельный** от каталога.
+- Связь с GitHub: **поллинг** (без входящего webhook и без туннеля).
+- Опционально позже: self-hosted GitHub Actions runner только для деплоя.
+- Секреты в `.env`, не в git: `GITHUB_TOKEN` (лучше раздельные read vs release), `CURSOR_API_KEY`.
+- Идемпотентность: одно активное облачное задание на пару `(issue, role)`.
+- В записи джоба обязательно: `cursorAgentId`, `cursorRunId`, URL issue/PR, статус, timestamps.
+
+Контейнер оркестратора **не** монтирует docker.sock. Сокет только у `deployer`.
+
+Ollama: `host.docker.internal:11434` для приложения каталога, не для оркестратора.
+
+## 6. UI оркестратора и логи
+
+Три журнала, UI их сшивает, полный транскрипт Cursor **не копируется**:
+
+| Источник | Содержание |
+|----------|------------|
+| Оркестратор | Поллинг, вызовы SDK, ошибки старта |
+| Cursor Cloud | Промпт, тулы, ответ агента — по ссылке на `agentId` (`bc-…`) |
+| GitHub Actions / Release | CI, review, deploy job |
+| Deployer | `compose up`, health |
+
+UI (отдельный порт, например `3010`, не смешивать с каталогом):
+
+1. Сначала GitHub (issues, Projects, Actions) — без своего UI.
+2. После рабочих джоб: таблица очереди, колонка «ожидает апрува», ссылки Issue / PR / агент Cursor, лог оркестратора из своей БД.
+3. Апрув релиза в UI не дублировать как единственный канал — источник правды GitHub.
+
+Порт UI не публиковать в интернет без защиты.
+
+## 7. Что агентам запрещено
+
+- Merge в `main` без `release-approved` / явного «ок» человека (конституция P9).
+- Деплой и `docker compose` с облачной VM.
+- Утверждать E2E каталога (vision, поиск) без локального прогона.
+- Выходить за scope MVP каталога без `needs-human`.
+- Коммитить секреты, расширять scope «заодно».
+
+## 8. Промпты
+
+Тексты ролей (создаются на этапе P0 плана, каталог `pipeline/prompts/`):
+
+- `analyst.md`
+- `developer.md`
+- `tester.md`
+- `release-manager.md`
+
+Язык промптов и комментариев в GitHub — **русский**.
+
+## 9. Исключение из P1
+
+Для **процесса** разработки разрешены GitHub и Cursor Cloud (клонирование репо на VM, API).  
+Для **продукта** (фото, MongoDB, Ollama, runtime каталога) по-прежнему только локальная машина.
+
+Подробнее: [CONSTITUTION.md](./CONSTITUTION.md) §2, принцип P1.
