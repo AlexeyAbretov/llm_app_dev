@@ -65,6 +65,8 @@ Git — **только GitHub** (`origin`). Локальная Gitea не исп
 
 Старт аналитика: labels `bug` или `feature` **и** `needs-plan`. После прогона оркестратор снимает `needs-plan` и ставит `ready-for-dev` или `needs-human` (по маркеру `PIPELINE_LABELS:` в ответе агента или при ошибке Cursor).
 
+Старт разработчика: `bug` или `feature` **и** `ready-for-dev`, нет открытого PR `Fixes #N` (или ветки `issue/<n>-…`). При старте оркестратор ставит `in-dev`. После PR: снимает `ready-for-dev` и `in-dev`, ставит `in-qa`. Если агент упал или PR нет — `needs-human`. Если PR уже открыт, агент не стартует, только метка `in-qa`.
+
 
 ## 4. Апрув релиза (как RM сообщает человеку)
 

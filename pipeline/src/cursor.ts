@@ -46,7 +46,7 @@ export async function runCloudAgent(
       cloud: {
         repos: [{ url: config.CURSOR_REPO_URL, startingRef: config.CURSOR_STARTING_REF }],
         skipReviewerRequest: true,
-        autoCreatePR: false,
+        autoCreatePR: role === "developer",
         metadata: {
           issue: String(issue.number),
           role,

@@ -4,7 +4,11 @@ import { runCloudAgent } from "./cursor.js";
 import { GitHubClient, agentResultComment, jobComment, type GitHubIssue } from "./github.js";
 import { JobStore } from "./jobs.js";
 import { jobLog } from "./log.js";
-import { decideAnalystOutcome, roleForLabels } from "./rules.js";
+import {
+  decideAnalystOutcome,
+  decideDeveloperOutcome,
+  roleForLabels,
+} from "./rules.js";
 import type { Role } from "./types.js";
 
 export function startPoller(
@@ -35,6 +39,16 @@ export function startPoller(
   };
 }
 
+function mergeIssues(groups: GitHubIssue[][]): GitHubIssue[] {
+  const byNumber = new Map<number, GitHubIssue>();
+  for (const group of groups) {
+    for (const issue of group) {
+      byNumber.set(issue.number, issue);
+    }
+  }
+  return [...byNumber.values()];
+}
+
 async function pollOnce(
   config: Config,
   logger: FastifyBaseLogger,
@@ -51,7 +65,12 @@ async function pollOnce(
   const pollStartedAt = new Date().toISOString();
   let issues: GitHubIssue[];
   try {
-    issues = await github.listNeedsPlan();
+    issues = mergeIssues(
+      await Promise.all([
+        github.listOpenIssuesByLabel("needs-plan"),
+        github.listOpenIssuesByLabel("ready-for-dev"),
+      ]),
+    );
   } catch (err) {
     logger.error({ err }, "github list failed");
     return;
@@ -63,7 +82,7 @@ async function pollOnce(
       jobLog(
         logger,
         { issue: issue.number, role: null, agentId: null, runId: null },
-        "skip: needs-plan without feature/bug or blocked by needs-human/ready-for-dev",
+        "skip: labels do not match analyst or developer trigger",
       );
       continue;
     }
@@ -71,6 +90,16 @@ async function pollOnce(
   }
 
   store.setLastPollAt(pollStartedAt);
+}
+
+async function applyDeveloperLabels(
+  github: GitHubClient,
+  issue: number,
+  decision: "in-qa" | "needs-human",
+): Promise<void> {
+  await github.removeIssueLabel(issue, "in-dev");
+  await github.removeIssueLabel(issue, "ready-for-dev");
+  await github.addIssueLabels(issue, [decision]);
 }
 
 async function handleIssue(
@@ -82,6 +111,25 @@ async function handleIssue(
   role: Role,
 ): Promise<void> {
   const fields = { issue: issue.number, role, agentId: null, runId: null };
+
+  if (role === "developer") {
+    let hasPr = false;
+    try {
+      hasPr = await github.hasOpenFixPr(issue.number);
+    } catch (err) {
+      logger.error({ err, issue: issue.number }, "github pulls failed");
+      return;
+    }
+    if (hasPr) {
+      try {
+        await applyDeveloperLabels(github, issue.number, "in-qa");
+        jobLog(logger, fields, "labels: PR already open → in-qa");
+      } catch (err) {
+        logger.error({ err, issue: issue.number }, "github labels failed");
+      }
+      return;
+    }
+  }
 
   if (store.find(issue.number, role)) {
     jobLog(logger, fields, "skip existing job");
@@ -100,6 +148,14 @@ async function handleIssue(
   }
 
   store.update(job.id, { status: "running" });
+  if (role === "developer") {
+    try {
+      await github.addIssueLabels(issue.number, ["in-dev"]);
+      jobLog(logger, fields, "labels: +in-dev");
+    } catch (err) {
+      logger.error({ err, issue: issue.number }, "github labels failed");
+    }
+  }
   jobLog(logger, { ...fields }, "cursor agent starting");
 
   const outcome = await runCloudAgent(config, role, issue, async ({ agentId, runId }) => {
@@ -154,6 +210,31 @@ async function handleIssue(
           runId: outcome.runId,
         },
         `labels: -needs-plan +${decision}`,
+      );
+    } catch (err) {
+      logger.error({ err, issue: issue.number }, "github labels failed");
+    }
+  }
+
+  if (role === "developer") {
+    let hasPr = false;
+    try {
+      hasPr = await github.hasOpenFixPr(issue.number);
+    } catch (err) {
+      logger.error({ err, issue: issue.number }, "github pulls failed");
+    }
+    decision = decideDeveloperOutcome(outcome.status, hasPr);
+    try {
+      await applyDeveloperLabels(github, issue.number, decision);
+      jobLog(
+        logger,
+        {
+          issue: issue.number,
+          role,
+          agentId: outcome.agentId,
+          runId: outcome.runId,
+        },
+        `labels: -ready-for-dev -in-dev +${decision}`,
       );
     } catch (err) {
       logger.error({ err, issue: issue.number }, "github labels failed");

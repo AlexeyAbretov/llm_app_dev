@@ -1,4 +1,5 @@
 import { parseOwnerRepo, type Config } from "./config.js";
+import { prFixesIssue } from "./rules.js";
 
 export type GitHubIssue = {
   number: number;
@@ -41,11 +42,11 @@ export class GitHubClient {
     };
   }
 
-  async listNeedsPlan(): Promise<GitHubIssue[]> {
+  async listOpenIssuesByLabel(label: string): Promise<GitHubIssue[]> {
     const { owner, repo } = this.repoPath();
     const url = new URL(`https://api.github.com/repos/${owner}/${repo}/issues`);
     url.searchParams.set("state", "open");
-    url.searchParams.set("labels", "needs-plan");
+    url.searchParams.set("labels", label);
     url.searchParams.set("per_page", "50");
 
     const response = await fetch(url, { headers: this.headers() });
@@ -64,6 +65,31 @@ export class GitHubClient {
         html_url: item.html_url,
         labels: labelNames(item.labels),
       }));
+  }
+
+  async hasOpenFixPr(issue: number): Promise<boolean> {
+    const { owner, repo } = this.repoPath();
+    const url = new URL(`https://api.github.com/repos/${owner}/${repo}/pulls`);
+    url.searchParams.set("state", "open");
+    url.searchParams.set("per_page", "50");
+
+    const response = await fetch(url, { headers: this.headers() });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub pulls ${response.status}: ${text.slice(0, 500)}`);
+    }
+
+    const items = (await response.json()) as Array<{
+      title: string;
+      body: string | null;
+      head?: { ref?: string };
+    }>;
+    return items.some((pr) =>
+      prFixesIssue(
+        { title: pr.title, body: pr.body, headRef: pr.head?.ref ?? "" },
+        issue,
+      ),
+    );
   }
 
   async commentOnIssue(issue: number, body: string): Promise<void> {
@@ -134,7 +160,7 @@ export function jobComment(params: {
     params.runId ? `runId: \`${params.runId}\`` : "runId: —",
   ];
   if (params.decision) {
-    lines.push(`Решение: снять \`needs-plan\`, поставить \`${params.decision}\`.`);
+    lines.push(`Решение: \`${params.decision}\`.`);
   }
   if (params.error) {
     lines.push(`Ошибка: ${params.error}`);

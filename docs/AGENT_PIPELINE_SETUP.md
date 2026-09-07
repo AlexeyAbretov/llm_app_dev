@@ -3,7 +3,7 @@
 Контракт (роли, labels): [AGENT_PIPELINE.md](./AGENT_PIPELINE.md).  
 Этапы разработки: [AGENT_PIPELINE_PLAN.md](./AGENT_PIPELINE_PLAN.md).
 
-Сейчас из коробки поднимаются **P0–P3**: оркестратор в Docker, поллинг GitHub, Cursor Cloud **аналитик**, метки `ready-for-dev` / `needs-human`. Разработчик, тесты, релиз и локальный деплой каталога — ещё не в коде.
+Сейчас из коробки поднимаются **P0–P4**: оркестратор в Docker, поллинг GitHub, Cursor Cloud **аналитик** и **разработчик** (ветка + PR). Тестировщик, релиз и локальный деплой каталога — ещё не в коде.
 
 Каталог объектов (Ollama, MongoDB) **не нужен**, чтобы запустить оркестратор.
 
@@ -15,6 +15,7 @@
 2. На GitHub создаёте issue с labels `feature` (или `bug`) **и** `needs-plan`.
 3. В течение ~30 с оркестратор стартует Cursor Cloud, пишет комментарий с `agentId` / `runId`.
 4. После ответа аналитика: комментарий со статусом, **отдельный комментарий с текстом плана**, снимается `needs-plan`, ставится `ready-for-dev` или `needs-human`.
+5. На `ready-for-dev` стартует разработчик (`in-dev`). После открытого PR `Fixes #N` — `in-qa` (не merge в `main`).
 
 Повторный полл ту же пару `(issue, analyst)` не запускает — состояние в volume `jobs.json`.
 
@@ -51,11 +52,13 @@ Issues → Labels. Создайте, если нет (имена **точно** 
 | `bug` | тип |
 | `feature` | тип |
 | `needs-plan` | очередь аналитика |
-| `ready-for-dev` | план принят |
+| `ready-for-dev` | план принят, очередь разработчика |
+| `in-dev` | разработчик работает |
+| `in-qa` | есть PR, очередь тестировщика (P5) |
 | `needs-human` | стоп автоматики |
 | `p0` … `p3` | приоритет (по желанию) |
 
-Без `ready-for-dev` / `needs-human` API постановки меток вернёт ошибку.
+Без этих имён API постановки меток вернёт ошибку.
 
 Шаблон issue: `.github/ISSUE_TEMPLATE/task.yml` (ставит `needs-plan`; `feature`/`bug` всё равно поставьте вручную).
 
@@ -67,7 +70,7 @@ Issues → Labels. Создайте, если нет (имена **точно** 
 
 1. GitHub (тот же owner, что у репо) → Settings → Developer settings → **Personal access tokens** → Fine-grained.
 2. Resource owner — владелец репо. Repository access — **Only select** → `llm_app_dev`.
-3. Repository permissions: **Issues → Read and write**. Metadata — Read.
+3. Repository permissions: **Issues → Read and write**, **Pull requests → Read**. Metadata — Read.
 4. Скопируйте значение (`github_pat_...`).
 
 Проверка (токен только в своём терминале):
@@ -163,7 +166,9 @@ Volume `llm_app_dev_pipeline_data` хранит `jobs.json` (очередь). `d
 3. Описание: цель и критерий готовности (для проверки «вне MVP» напишите авторизацию / поиск по фото).
 4. Ждите ≤ `POLL_INTERVAL_MS` (по умолчанию 30 с).
 
-В логах: `cursor agent starting` → `cursor run started` (есть `agentId` `bc-…`) → `cursor run finished` → `labels: -needs-plan +ready-for-dev` или `+needs-human`.
+В логах аналитика: `cursor agent starting` → `cursor run started` (есть `agentId` `bc-…`) → `cursor run finished` → `labels: -needs-plan +ready-for-dev` или `+needs-human`.
+
+Дальше, если стоит `ready-for-dev` и нет открытого PR: `labels: +in-dev` → разработчик → `labels: … +in-qa` или `+needs-human`. Не вешайте `ready-for-dev` сразу на все MVP-issues: разработчик будет кодить каждую.
 
 В issue — комментарии пайплайна и (обычно) план от агента. В Cursor Web агенты SDK: Filter → Source → **SDK**.
 
@@ -171,7 +176,7 @@ Volume `llm_app_dev_pipeline_data` хранит `jobs.json` (очередь). `d
 
 ## 8. Сброс очереди (`jobs.json`)
 
-Одна пара `(номер issue, роль analyst)` запускается один раз. Чтобы прогнать ту же issue снова:
+Пара `(номер issue, роль)` запускается один раз. Чтобы прогнать ту же issue снова:
 
 ```powershell
 docker compose -f docker-compose.pipeline.yml exec orchestrator rm -f /data/jobs.json
@@ -185,9 +190,9 @@ docker volume rm llm_app_dev_pipeline_data
 docker compose -f docker-compose.pipeline.yml up -d
 ```
 
-Пока висит `needs-plan`, после сброса аналитик стартует снова. Чтобы не жечь квоту Cursor — снимите `needs-plan`.
+После сброса: аналитик снова при `needs-plan`, разработчик — при `ready-for-dev`. Чтобы не жечь квоту — снимите эти метки.
 
-Очередь — **все** открытые issue с `needs-plan` (не фильтр GitHub `since`). Если агент «не видит» задачу с нужными labels, не обязательно трогать `jobs.json`: достаточно следующего тика после пересборки с этим поведением.
+Очередь — открытые issue с `needs-plan` или `ready-for-dev` (не фильтр GitHub `since`).
 
 ---
 
@@ -197,11 +202,12 @@ docker compose -f docker-compose.pipeline.yml up -d
 |---------|------------|
 | `poll skip: GITHUB_TOKEN or GITHUB_REPO empty` | Ключи в **корневом** `.env`, затем `--force-recreate` |
 | `GitHub comment 403` / labels 403 | PAT: Issues **Read and write**, owner = текущий репо |
+| `GitHub pulls 403` | PAT: **Pull requests → Read** (проверка `Fixes #N`) |
 | `Cursor is not available in your region` | Cloud Agents недоступны с этого IP/аккаунта; оркестратор тут ни при чём |
 | `Failed to verify existence of branch 'main'` | Ветка есть на GitHub; Cursor GitHub App видит **этот** репо (owner, не collaborator) |
 | `resource_exhausted` retryable=true | Лимит Cloud Agents / Usage; подождать, не чистить `jobs.json` в цикле |
 | Агент не стартует, только `needs-plan` | Добавьте `feature` или `bug` |
-| Метка не ставится, label 404/422 | Создайте `ready-for-dev` и `needs-human` в репо |
+| Метка не ставится, label 404/422 | Создайте `ready-for-dev`, `needs-human`, `in-dev`, `in-qa` в репо |
 | Повторно не берёт issue | Так задумано, если job уже есть; сброс `jobs.json` |
 | Issue с `feature`+`needs-plan` «не подхватывается» | Старый баг: фильтр `since`. Нужна версия без `since` + пересборка compose. Не обязательно комментировать issue |
 | `agentId` пустой, сразу `cursor run failed` | Смотреть текст `Ошибка:` в комментарии issue или `exec cat /data/jobs.json` |
@@ -210,7 +216,7 @@ docker compose -f docker-compose.pipeline.yml up -d
 
 ## 10. Что ещё не запускается
 
-- Разработчик (PR), тестировщик, релиз-менеджер, локальный deployer каталога.
+- Тестировщик, релиз-менеджер, локальный deployer каталога.
 - UI оркестратора.
 - Каталог: `docker compose up` MongoDB / `ollama serve` — отдельный трек, [MVP_PLAN.md](./MVP_PLAN.md).
 
