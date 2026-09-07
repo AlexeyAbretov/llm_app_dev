@@ -62,6 +62,9 @@ Git — **только GitHub** (`origin`). Локальная Gitea не исп
 
 **Milestone** = версия (`v0.3`) + due date (дата релиза).
 
+Старт аналитика: labels `bug` или `feature` **и** `needs-plan`. После прогона оркестратор снимает `needs-plan` и ставит `ready-for-dev` или `needs-human` (по маркеру `PIPELINE_LABELS:` в ответе агента или при ошибке Cursor).
+
+
 ## 4. Апрув релиза (как RM сообщает человеку)
 
 Облачный агент не пишет в личный чат Cursor. Канал — **GitHub**.
