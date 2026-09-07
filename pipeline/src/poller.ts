@@ -223,9 +223,10 @@ async function handleIssue(
     } catch (err) {
       logger.error({ err, issue: issue.number }, "github pulls failed");
     }
-    decision = decideDeveloperOutcome(outcome.status, hasPr);
+    const developerDecision = decideDeveloperOutcome(outcome.status, hasPr);
+    decision = developerDecision;
     try {
-      await applyDeveloperLabels(github, issue.number, decision);
+      await applyDeveloperLabels(github, issue.number, developerDecision);
       jobLog(
         logger,
         {

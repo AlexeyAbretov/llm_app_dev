@@ -201,6 +201,7 @@ docker compose -f docker-compose.pipeline.yml up -d
 | Симптом | Что делать |
 |---------|------------|
 | `poll skip: GITHUB_TOKEN or GITHUB_REPO empty` | Ключи в **корневом** `.env`, затем `--force-recreate` |
+| `getaddrinfo ENOTFOUND api.github.com` | DNS в контейнере (Docker Desktop). Тик пропускается, следующий полл повторит. В compose заданы `8.8.8.8` / `1.1.1.1`; пересобрать: `up -d --force-recreate`. Если в стеке `listNeedsPlan` — старый образ, нужен `--build` с ветки P4 |
 | `GitHub comment 403` / labels 403 | PAT: Issues **Read and write**, owner = текущий репо |
 | `GitHub pulls 403` | PAT: **Pull requests → Read** (проверка `Fixes #N`) |
 | `Cursor is not available in your region` | Cloud Agents недоступны с этого IP/аккаунта; оркестратор тут ни при чём |

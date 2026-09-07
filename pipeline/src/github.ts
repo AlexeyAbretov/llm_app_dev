@@ -22,6 +22,40 @@ function labelNames(labels: GitHubIssueRaw["labels"]): string[] {
   return labels.map((label) => (typeof label === "string" ? label : label.name));
 }
 
+function isTransientNetworkError(err: unknown): boolean {
+  const parts: string[] = [];
+  let current: unknown = err;
+  for (let i = 0; i < 4 && current; i++) {
+    if (current instanceof Error) {
+      parts.push(current.message, current.name);
+      current = current.cause;
+    } else {
+      parts.push(String(current));
+      break;
+    }
+  }
+  return /ENOTFOUND|EAI_AGAIN|ECONNRESET|ETIMEDOUT|UND_ERR_SOCKET|fetch failed/i.test(
+    parts.join(" "),
+  );
+}
+
+async function githubFetch(url: string | URL, init?: RequestInit): Promise<Response> {
+  const attempts = 3;
+  let last: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      last = err;
+      if (!isTransientNetworkError(err) || i === attempts - 1) {
+        throw err;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400 * (i + 1)));
+    }
+  }
+  throw last;
+}
+
 export class GitHubClient {
   constructor(private readonly config: Config) {}
 
@@ -49,7 +83,7 @@ export class GitHubClient {
     url.searchParams.set("labels", label);
     url.searchParams.set("per_page", "50");
 
-    const response = await fetch(url, { headers: this.headers() });
+    const response = await githubFetch(url, { headers: this.headers() });
     if (!response.ok) {
       const text = await response.text();
       throw new Error(`GitHub issues ${response.status}: ${text.slice(0, 500)}`);
@@ -73,7 +107,7 @@ export class GitHubClient {
     url.searchParams.set("state", "open");
     url.searchParams.set("per_page", "50");
 
-    const response = await fetch(url, { headers: this.headers() });
+    const response = await githubFetch(url, { headers: this.headers() });
     if (!response.ok) {
       const text = await response.text();
       throw new Error(`GitHub pulls ${response.status}: ${text.slice(0, 500)}`);
@@ -94,7 +128,7 @@ export class GitHubClient {
 
   async commentOnIssue(issue: number, body: string): Promise<void> {
     const { owner, repo } = this.repoPath();
-    const response = await fetch(
+    const response = await githubFetch(
       `https://api.github.com/repos/${owner}/${repo}/issues/${issue}/comments`,
       {
         method: "POST",
@@ -113,7 +147,7 @@ export class GitHubClient {
       return;
     }
     const { owner, repo } = this.repoPath();
-    const response = await fetch(
+    const response = await githubFetch(
       `https://api.github.com/repos/${owner}/${repo}/issues/${issue}/labels`,
       {
         method: "POST",
@@ -130,7 +164,7 @@ export class GitHubClient {
   async removeIssueLabel(issue: number, label: string): Promise<void> {
     const { owner, repo } = this.repoPath();
     const encoded = encodeURIComponent(label);
-    const response = await fetch(
+    const response = await githubFetch(
       `https://api.github.com/repos/${owner}/${repo}/issues/${issue}/labels/${encoded}`,
       { method: "DELETE", headers: this.headers() },
     );

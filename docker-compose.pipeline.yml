@@ -21,6 +21,9 @@ services:
     volumes:
       - pipeline_data:/data
     user: "0"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     restart: unless-stopped
 
 volumes:
