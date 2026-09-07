@@ -1,6 +1,6 @@
 # Конституция проекта: Каталог объектов
 
-> Версия: 1.1 · Дата: 2026-07-23
+> Версия: 1.2 · Дата: 2026-07-23
 
 ## 1. Миссия
 
@@ -18,8 +18,84 @@
 | P6 | **Один GPU, последовательно** | RTX 4060 8 GB — vision и embedding не запускаем параллельно. |
 | P7 | **Типобезопасность** | TypeScript на фронте. Общие типы в `shared/`. Backend — TypeScript или JSDoc + Zod. |
 | P8 | **Минимальный diff** | Каждый PR/шаг решает одну задачу. Без over-engineering. |
+| P9 | **Ветка на этап** | Каждый этап MVP — отдельная git-ветка. Merge в `main` только после явного подтверждения пользователя. |
 
-## 3. Scope MVP
+## 3. Git-workflow
+
+### 3.1 Основные правила
+
+- **`main`** — стабильная ветка; только проверенный и подтверждённый код
+- **Один этап MVP = одна ветка** — вся работа этапа ведётся только в ней
+- **Merge только после подтверждения** — агент/разработчик не мержит в `main` без явного «ок» от пользователя
+- **Следующий этап** — новая ветка от актуального `main` (после merge предыдущего)
+
+### 3.2 Именование веток
+
+```
+stage/<номер>-<краткое-имя>
+```
+
+| Этап | Ветка |
+|------|-------|
+| 0 | `stage/0-infrastructure` |
+| 1 | `stage/1-backend-skeleton` |
+| 2 | `stage/2-mongodb` |
+| 3 | `stage/3-ollama-services` |
+| 4 | `stage/4-langgraph-pipeline` |
+| 5 | `stage/5-api-endpoints` |
+| 6 | `stage/6-frontend-skeleton` |
+| 7 | `stage/7-upload-polling` |
+| 8 | `stage/8-catalog-detail` |
+| 9 | `stage/9-search` |
+| 10 | `stage/10-polish` |
+
+### 3.3 Жизненный цикл этапа
+
+```
+main ──► stage/N-... ──► коммиты ──► push ──► проверка чеклиста
+                                              │
+                                    подтверждение пользователя
+                                              │
+                                              ▼
+                                    merge в main ──► push main
+                                              │
+                                              ▼
+                                    stage/N+1-... (от main)
+```
+
+### 3.4 Команды (шаблон)
+
+```bash
+# Начало этапа N
+git checkout main
+git pull origin main
+git checkout -b stage/N-short-name
+
+# Работа на этапе — один или несколько коммитов
+git add .
+git commit -m "feat(stage-N): описание"
+git push -u origin stage/N-short-name
+
+# После подтверждения пользователя
+git checkout main
+git pull origin main
+git merge stage/N-short-name
+git push origin main
+
+# Опционально: удалить ветку этапа
+git branch -d stage/N-short-name
+git push origin --delete stage/N-short-name
+```
+
+### 3.5 Критерий merge
+
+Merge в `main` допустим когда:
+
+1. Все пункты **«Проверка»** текущего этапа из [MVP_PLAN.md](./MVP_PLAN.md) выполнены
+2. Пользователь явно подтвердил: «мержим», «этап готов», «ok» и т.п.
+3. Нет незакоммиченных изменений
+
+## 4. Scope MVP
 
 ### В scope
 
@@ -41,7 +117,7 @@
 - Мобильное приложение
 - Экспорт / импорт каталога
 
-## 4. Технологический стек
+## 5. Технологический стек
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -68,7 +144,7 @@
 - **Модели:** только 7B-класс в квантизации (Q4/Q5)
 - **Очередь:** одна vision-задача за раз (mutex/semaphore)
 
-### 4.1 Обоснование выбора технологий
+### 5.1 Обоснование выбора технологий
 
 Для каждого компонента — зачем выбран, какие альтернативы рассматривались и почему отклонены.
 
@@ -127,9 +203,9 @@
 | **In-memory queue** | Одна GPU, одна задача; не нужен Redis/Bull для MVP | Bull + Redis — лишняя зависимость; cron — не event-driven |
 | **JSON parse + retry (не structured output)** | Ollama structured output нестабилен между моделями; Zod + retry покрывает 95% случаев | Function calling — не все local models поддерживают; regex-only — хрупко |
 
-## 5. Архитектура
+## 6. Архитектура
 
-### 5.1 Структура monorepo
+### 6.1 Структура monorepo
 
 ```
 llm_app_dev/
@@ -141,7 +217,7 @@ llm_app_dev/
 └── .cursor/rules/     # Правила для AI-агента
 ```
 
-### 5.2 Поток данных: загрузка
+### 6.2 Поток данных: загрузка
 
 ```
 User → POST /api/items (multipart)
@@ -157,7 +233,7 @@ User → GET /api/items/:id (polling пока processing)
      ← { id, title, description, tags, imageUrl, status }
 ```
 
-### 5.3 Поток данных: поиск
+### 6.3 Поток данных: поиск
 
 ```
 User → GET /api/search?q=красная ваза
@@ -167,7 +243,7 @@ User → GET /api/search?q=красная ваза
      ← [{ item, score }, ...]
 ```
 
-### 5.4 LangGraph pipeline (узлы)
+### 6.4 LangGraph pipeline (узлы)
 
 | Узел | Вход | Выход | Retry |
 |------|------|-------|-------|
@@ -178,7 +254,7 @@ User → GET /api/search?q=красная ваза
 | `embed` | title+desc+tags | float[] | 2× |
 | `saveDB` | all fields | mongoId | — |
 
-### 5.5 MongoDB: коллекция `catalog_items`
+### 6.5 MongoDB: коллекция `catalog_items`
 
 ```typescript
 interface CatalogItem {
@@ -210,7 +286,7 @@ interface CatalogItem {
 - `{ status: 1, createdAt: -1 }`
 - `{ createdAt: -1 }`
 
-## 6. API контракт (MVP)
+## 7. API контракт (MVP)
 
 | Method | Path | Описание |
 |--------|------|----------|
@@ -220,7 +296,7 @@ interface CatalogItem {
 | `GET` | `/api/search` | Поиск (`?q=...&limit=20`) |
 | `GET` | `/api/health` | Healthcheck (mongo + ollama) |
 
-## 7. Промпт vision LLM (v1)
+## 8. Промпт vision LLM (v1)
 
 ```
 Ты — помощник для каталога объектов. Посмотри на изображение и верни JSON:
@@ -238,7 +314,7 @@ interface CatalogItem {
 - Ответ: только JSON, без markdown
 ```
 
-## 8. Критерии готовности MVP
+## 9. Критерии готовности MVP
 
 - [ ] `docker compose up` поднимает MongoDB
 - [ ] Ollama с `qwen2-vl:7b` и `nomic-embed-text` отвечает на `/api/health`
@@ -248,7 +324,7 @@ interface CatalogItem {
 - [ ] При ошибке LLM объект переходит в `failed` с сообщением
 - [ ] Frontend на русском, без английских placeholder-текстов
 
-## 9. Решения, которые сознательно отложены
+## 10. Решения, которые сознательно отложены
 
 | Решение | Почему отложено |
 |---------|-----------------|
@@ -258,7 +334,7 @@ interface CatalogItem {
 | Image resize | Добавим если LLM будет падать на больших файлах |
 | Structured output API Ollama | JSON-парсинг с retry проще для старта |
 
-## 10. Ссылки
+## 11. Ссылки
 
 - [MVP Plan](./MVP_PLAN.md) — пошаговый план реализации
 - [LangGraph.js](https://langchain-ai.github.io/langgraphjs/)

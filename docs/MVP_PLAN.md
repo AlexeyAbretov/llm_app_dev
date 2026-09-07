@@ -1,6 +1,32 @@
 # MVP Plan: Каталог объектов
 
-> Пошаговый план реализации. Каждый этап — отдельный логический блок, который можно проверить независимо.
+> Пошаговый план реализации. Каждый этап — отдельная git-ветка и логический блок, который можно проверить независимо.
+
+## Git-workflow: ветка на этап
+
+> Подробнее: [CONSTITUTION.md §3](./CONSTITUTION.md#3-git-workflow)
+
+1. **Перед этапом N:** `git checkout main && git pull` → `git checkout -b stage/N-...`
+2. **Во время этапа:** все коммиты только в ветке этапа
+3. **После этапа:** push ветки → прогон чеклиста «Проверка»
+4. **Merge в `main`:** только после явного подтверждения пользователя
+5. **Следующий этап:** новая ветка от обновлённого `main`
+
+| Этап | Ветка |
+|------|-------|
+| 0 | `stage/0-infrastructure` |
+| 1 | `stage/1-backend-skeleton` |
+| 2 | `stage/2-mongodb` |
+| 3 | `stage/3-ollama-services` |
+| 4 | `stage/4-langgraph-pipeline` |
+| 5 | `stage/5-api-endpoints` |
+| 6 | `stage/6-frontend-skeleton` |
+| 7 | `stage/7-upload-polling` |
+| 8 | `stage/8-catalog-detail` |
+| 9 | `stage/9-search` |
+| 10 | `stage/10-polish` |
+
+**Агент не мержит в `main` без команды пользователя.**
 
 ## Обзор этапов
 
@@ -23,6 +49,8 @@
 ---
 
 ## Этап 0: Инфраструктура и scaffold
+
+**Ветка:** `stage/0-infrastructure`
 
 **Цель:** monorepo, зависимости, docker, env.
 
@@ -330,30 +358,35 @@
    - prerequisites (Node, Docker, Ollama)
    - setup instructions
    - `npm run dev` — запуск всего
-6. Финальный прогон по чеклисту из CONSTITUTION.md §8
+6. Финальный прогон по чеклисту из CONSTITUTION.md §9
 
 ### Проверка
 
 - [ ] Новый разработчик по README поднимает проект за ≤15 мин
-- [ ] Все пункты §8 CONSTITUTION.md — ✅
+- [ ] Все пункты §9 CONSTITUTION.md — ✅
 
 ---
 
-## Порядок коммитов (рекомендуемый)
+## Порядок веток и коммитов
+
+Каждый этап — отдельная ветка. Внутри ветки допустимы несколько коммитов.
 
 ```
-1. chore: scaffold monorepo + docker + shared types
-2. feat(backend): fastify skeleton + healthcheck
-3. feat(backend): mongo repository + indexes
-4. feat(backend): ollama vision + embed services
-5. feat(backend): langgraph catalog pipeline
-6. feat(backend): items API endpoints
-7. feat(frontend): vite react ts skeleton + routing
-8. feat(frontend): upload page with polling
-9. feat(frontend): catalog + item detail pages
-10. feat: hybrid search (backend + frontend)
-11. docs: README + polish
+main
+ ├── stage/0-infrastructure     → chore: scaffold monorepo + docker + shared types
+ ├── stage/1-backend-skeleton    → feat(backend): fastify skeleton + healthcheck
+ ├── stage/2-mongodb             → feat(backend): mongo repository + indexes
+ ├── stage/3-ollama-services     → feat(backend): ollama vision + embed services
+ ├── stage/4-langgraph-pipeline  → feat(backend): langgraph catalog pipeline
+ ├── stage/5-api-endpoints       → feat(backend): items API endpoints
+ ├── stage/6-frontend-skeleton   → feat(frontend): vite react ts skeleton + routing
+ ├── stage/7-upload-polling      → feat(frontend): upload page with polling
+ ├── stage/8-catalog-detail      → feat(frontend): catalog + item detail pages
+ ├── stage/9-search              → feat: hybrid search (backend + frontend)
+ └── stage/10-polish             → docs: README + polish
 ```
+
+После каждой ветки: **подтверждение → merge в main → push**.
 
 ---
 
@@ -374,7 +407,7 @@
 MVP считается завершённым когда:
 
 1. Все 10 этапов пройдены
-2. Чеклист CONSTITUTION.md §8 — полностью зелёный
+2. Чеклист CONSTITUTION.md §9 — полностью зелёный
 3. Demo flow работает end-to-end:
    **Upload фото → LLM описание → каталог → поиск → detail page**
 4. README позволяет воспроизвести setup
