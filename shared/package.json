@@ -1,0 +1,11 @@
+{
+  "name": "@llm-app/shared",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./types/index.ts",
+  "types": "./types/index.ts",
+  "exports": {
+    ".": "./types/index.ts"
+  }
+}

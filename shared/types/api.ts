@@ -1,0 +1,40 @@
+import type { CatalogItemPublic, ProcessingStatus } from './catalog.js';
+
+export interface ApiError {
+  error: string;
+}
+
+export interface HealthResponse {
+  status: 'ok' | 'degraded';
+  mongo: boolean;
+  ollama: boolean;
+}
+
+export interface CreateItemResponse {
+  id: string;
+  status: ProcessingStatus;
+}
+
+export interface GetItemResponse extends CatalogItemPublic {}
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ListItemsResponse {
+  items: CatalogItemPublic[];
+  meta: PaginationMeta;
+}
+
+export interface SearchResultItem {
+  item: CatalogItemPublic;
+  score: number;
+}
+
+export interface SearchResponse {
+  results: SearchResultItem[];
+  query: string;
+}
