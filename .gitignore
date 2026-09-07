@@ -8,6 +8,7 @@ build/
 # Environment
 .env
 .env.local
+pipeline/.env
 
 # Uploads & runtime data
 uploads/

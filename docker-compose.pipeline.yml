@@ -1,0 +1,16 @@
+services:
+  orchestrator:
+    build:
+      context: ./pipeline
+    env_file:
+      - path: pipeline/.env
+        required: false
+    environment:
+      PORT: "3020"
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-30000}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_REPO: ${GITHUB_REPO:-}
+      CURSOR_API_KEY: ${CURSOR_API_KEY:-}
+    ports:
+      - "127.0.0.1:3020:3020"
+    restart: unless-stopped

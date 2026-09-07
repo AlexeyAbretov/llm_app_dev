@@ -103,8 +103,8 @@ Issue → план → PR → проверка → draft release → апрув 
 
 ### Проверка
 
-- [ ] `docker compose -f docker-compose.pipeline.yml up` → `/health` = 200
-- [ ] Секреты не в git
+- [x] `docker compose -f docker-compose.pipeline.yml up` → `/health` = 200
+- [x] Секреты не в git
 
 ---
 
