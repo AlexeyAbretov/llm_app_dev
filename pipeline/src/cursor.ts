@@ -10,6 +10,7 @@ export type CursorRunOutcome = {
   runId: string | null;
   status: "finished" | "error" | "startup_error";
   error: string | null;
+  resultText: string | null;
 };
 
 function loadPrompt(promptsDir: string, role: Role): string {
@@ -65,12 +66,25 @@ export async function runCloudAgent(
         runId,
         status: "error",
         error: result.error?.message ?? "run.status=error",
+        resultText: result.result ?? null,
       };
     }
     if (result.status === "cancelled") {
-      return { agentId, runId, status: "error", error: "run cancelled" };
+      return {
+        agentId,
+        runId,
+        status: "error",
+        error: "run cancelled",
+        resultText: result.result ?? null,
+      };
     }
-    return { agentId, runId, status: "finished", error: null };
+    return {
+      agentId,
+      runId,
+      status: "finished",
+      error: null,
+      resultText: result.result ?? null,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const retryable =
@@ -81,6 +95,7 @@ export async function runCloudAgent(
       runId,
       status,
       error: `${message}${retryable}`,
+      resultText: null,
     };
   }
 }

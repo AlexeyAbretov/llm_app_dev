@@ -4,7 +4,7 @@ import { runCloudAgent } from "./cursor.js";
 import { GitHubClient, jobComment, type GitHubIssue } from "./github.js";
 import { JobStore } from "./jobs.js";
 import { jobLog } from "./log.js";
-import { roleForLabels } from "./rules.js";
+import { decideAnalystOutcome, roleForLabels } from "./rules.js";
 import type { Role } from "./types.js";
 
 export function startPoller(
@@ -134,6 +134,27 @@ async function handleIssue(
     outcome.status === "finished" ? "cursor run finished" : "cursor run failed",
   );
 
+  let decision: string | null = null;
+  if (role === "analyst") {
+    decision = decideAnalystOutcome(outcome.status, outcome.resultText);
+    try {
+      await github.removeIssueLabel(issue.number, "needs-plan");
+      await github.addIssueLabels(issue.number, [decision]);
+      jobLog(
+        logger,
+        {
+          issue: issue.number,
+          role,
+          agentId: outcome.agentId,
+          runId: outcome.runId,
+        },
+        `labels: -needs-plan +${decision}`,
+      );
+    } catch (err) {
+      logger.error({ err, issue: issue.number }, "github labels failed");
+    }
+  }
+
   try {
     await github.commentOnIssue(
       issue.number,
@@ -144,6 +165,7 @@ async function handleIssue(
         runId: outcome.runId,
         status: outcome.status,
         error: outcome.error,
+        decision,
       }),
     );
   } catch (err) {

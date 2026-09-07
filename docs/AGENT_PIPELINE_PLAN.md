@@ -135,9 +135,9 @@ Issue → план → PR → проверка → draft release → апрув 
 
 ### Шаги
 
-1. Триггер: open issue `bug`/`feature` без `ready-for-dev`.
-2. Промпт: конституция, MVP_PLAN, не расширять scope.
-3. Успех: `ready-for-dev`. Провал: `needs-human`.
+1. Триггер: open issue с `bug` или `feature` **и** `needs-plan`, без `ready-for-dev` / `needs-human`.
+2. Промпт: конституция, MVP_PLAN, маркер `PIPELINE_LABELS:` в последней строке.
+3. Успех: снять `needs-plan`, поставить `ready-for-dev`. Иначе: снять `needs-plan`, поставить `needs-human` (в т.ч. при ошибке Cursor).
 
 ### Проверка
 
