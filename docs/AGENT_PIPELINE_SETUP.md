@@ -187,6 +187,8 @@ docker compose -f docker-compose.pipeline.yml up -d
 
 Пока висит `needs-plan`, после сброса аналитик стартует снова. Чтобы не жечь квоту Cursor — снимите `needs-plan`.
 
+Очередь — **все** открытые issue с `needs-plan` (не фильтр GitHub `since`). Если агент «не видит» задачу с нужными labels, не обязательно трогать `jobs.json`: достаточно следующего тика после пересборки с этим поведением.
+
 ---
 
 ## 9. Частые ошибки
@@ -200,7 +202,8 @@ docker compose -f docker-compose.pipeline.yml up -d
 | `resource_exhausted` retryable=true | Лимит Cloud Agents / Usage; подождать, не чистить `jobs.json` в цикле |
 | Агент не стартует, только `needs-plan` | Добавьте `feature` или `bug` |
 | Метка не ставится, label 404/422 | Создайте `ready-for-dev` и `needs-human` в репо |
-| Повторно не берёт issue | Так задумано; сброс `jobs.json` |
+| Повторно не берёт issue | Так задумано, если job уже есть; сброс `jobs.json` |
+| Issue с `feature`+`needs-plan` «не подхватывается» | Старый баг: фильтр `since`. Нужна версия без `since` + пересборка compose. Не обязательно комментировать issue |
 | `agentId` пустой, сразу `cursor run failed` | Смотреть текст `Ошибка:` в комментарии issue или `exec cat /data/jobs.json` |
 
 ---

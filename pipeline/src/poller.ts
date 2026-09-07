@@ -51,7 +51,7 @@ async function pollOnce(
   const pollStartedAt = new Date().toISOString();
   let issues: GitHubIssue[];
   try {
-    issues = await github.listNeedsPlan(store.lastPollAt());
+    issues = await github.listNeedsPlan();
   } catch (err) {
     logger.error({ err }, "github list failed");
     return;
@@ -60,6 +60,11 @@ async function pollOnce(
   for (const issue of issues) {
     const role = roleForLabels(issue.labels);
     if (!role) {
+      jobLog(
+        logger,
+        { issue: issue.number, role: null, agentId: null, runId: null },
+        "skip: needs-plan without feature/bug or blocked by needs-human/ready-for-dev",
+      );
       continue;
     }
     await handleIssue(config, logger, store, github, issue, role);

@@ -41,15 +41,12 @@ export class GitHubClient {
     };
   }
 
-  async listNeedsPlan(since: string | null): Promise<GitHubIssue[]> {
+  async listNeedsPlan(): Promise<GitHubIssue[]> {
     const { owner, repo } = this.repoPath();
     const url = new URL(`https://api.github.com/repos/${owner}/${repo}/issues`);
     url.searchParams.set("state", "open");
     url.searchParams.set("labels", "needs-plan");
     url.searchParams.set("per_page", "50");
-    if (since) {
-      url.searchParams.set("since", since);
-    }
 
     const response = await fetch(url, { headers: this.headers() });
     if (!response.ok) {
