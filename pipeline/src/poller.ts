@@ -1,7 +1,7 @@
 import type { FastifyBaseLogger } from "fastify";
 import type { Config } from "./config.js";
 import { runCloudAgent } from "./cursor.js";
-import { GitHubClient, jobComment, type GitHubIssue } from "./github.js";
+import { GitHubClient, agentResultComment, jobComment, type GitHubIssue } from "./github.js";
 import { JobStore } from "./jobs.js";
 import { jobLog } from "./log.js";
 import { decideAnalystOutcome, roleForLabels } from "./rules.js";
@@ -175,5 +175,13 @@ async function handleIssue(
     );
   } catch (err) {
     logger.error({ err, issue: issue.number }, "github comment failed");
+  }
+
+  if (outcome.resultText?.trim()) {
+    try {
+      await github.commentOnIssue(issue.number, agentResultComment(role, outcome.resultText));
+    } catch (err) {
+      logger.error({ err, issue: issue.number }, "github plan comment failed");
+    }
   }
 }

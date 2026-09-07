@@ -14,7 +14,7 @@
 1. Контейнер слушает `http://127.0.0.1:3020/health` → `{"status":"ok"}`.
 2. На GitHub создаёте issue с labels `feature` (или `bug`) **и** `needs-plan`.
 3. В течение ~30 с оркестратор стартует Cursor Cloud, пишет комментарий с `agentId` / `runId`.
-4. После ответа аналитика снимается `needs-plan`, ставится `ready-for-dev` или `needs-human`.
+4. После ответа аналитика: комментарий со статусом, **отдельный комментарий с текстом плана**, снимается `needs-plan`, ставится `ready-for-dev` или `needs-human`.
 
 Повторный полл ту же пару `(issue, analyst)` не запускает — состояние в volume `jobs.json`.
 

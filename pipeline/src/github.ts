@@ -141,3 +141,15 @@ export function jobComment(params: {
   }
   return lines.join("\n");
 }
+
+const GITHUB_COMMENT_MAX = 60_000;
+
+export function agentResultComment(role: string, text: string): string {
+  const header = `## Результат: ${role}\n\n`;
+  const trimmed = text.trim() || "(пустой ответ агента)";
+  if (header.length + trimmed.length <= GITHUB_COMMENT_MAX) {
+    return header + trimmed;
+  }
+  const budget = GITHUB_COMMENT_MAX - header.length - 40;
+  return `${header}${trimmed.slice(0, budget)}\n\n… (обрезано, полный текст в Cursor SDK)`;
+}
