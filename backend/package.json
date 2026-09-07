@@ -1,0 +1,13 @@
+{
+  "name": "@llm-app/backend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo \"Backend scaffold — этап 1\"",
+    "build": "echo \"Backend scaffold — этап 1\""
+  },
+  "dependencies": {
+    "@llm-app/shared": "*"
+  }
+}

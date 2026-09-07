@@ -1,0 +1,13 @@
+{
+  "name": "@llm-app/frontend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo \"Frontend scaffold — этап 6\"",
+    "build": "echo \"Frontend scaffold — этап 6\""
+  },
+  "dependencies": {
+    "@llm-app/shared": "*"
+  }
+}
