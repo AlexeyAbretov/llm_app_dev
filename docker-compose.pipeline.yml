@@ -4,16 +4,9 @@ services:
       context: ./pipeline
     env_file:
       - path: pipeline/.env
-        required: false
+        required: true
     environment:
       PORT: "3020"
-      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-30000}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      GITHUB_REPO: ${GITHUB_REPO:-}
-      CURSOR_API_KEY: ${CURSOR_API_KEY:-}
-      CURSOR_REPO_URL: ${CURSOR_REPO_URL:-}
-      CURSOR_STARTING_REF: ${CURSOR_STARTING_REF:-main}
-      CURSOR_MODEL: ${CURSOR_MODEL:-composer-2.5}
       DATA_DIR: /data
       PROMPTS_DIR: /app/prompts
     ports:

@@ -65,7 +65,7 @@
    ```
    MONGO_URI=mongodb://localhost:27017/catalog
    OLLAMA_BASE_URL=http://localhost:11434
-   OLLAMA_VISION_MODEL=qwen2-vl:7b
+   OLLAMA_VISION_MODEL=qwen2.5vl:7b
    OLLAMA_EMBED_MODEL=nomic-embed-text
    UPLOAD_DIR=./uploads
    PORT=3001
@@ -74,7 +74,7 @@
 5. Создать `shared/` с базовыми типами (`CatalogItem`, `ProcessingStatus`, API responses)
 6. Убедиться что Ollama установлен, скачать модели:
    ```bash
-   ollama pull qwen2-vl:7b
+   ollama pull qwen2.5vl:7b
    ollama pull nomic-embed-text
    ```
 
@@ -395,7 +395,7 @@ main
 
 | Риск | Вероятность | Митигация |
 |------|-------------|-----------|
-| qwen2-vl плохо генерирует JSON | Средняя | parseResponse с retry + regex fallback |
+| qwen2.5vl плохо генерирует JSON | Средняя | parseResponse с retry + regex fallback |
 | OOM на 8 GB при vision | Средняя | mutex, одна задача; resize до 1024px |
 | Ollama не запущен | Высокая | healthcheck + понятная ошибка в UI |
 | Медленный cosine на >5k items | Низкая (MVP) | достаточно для MVP; vector index позже |

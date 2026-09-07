@@ -101,12 +101,12 @@ gh api repos/AlexeyAbretov/llm_app_dev/issues/1/comments -f body="test"
 
 ---
 
-## 5. Файл `.env` в корне репозитория
+## 5. Файл `pipeline/.env`
 
-Compose подставляет `GITHUB_TOKEN` и остальные из **корня** проекта (файл `.env` рядом с `docker-compose.pipeline.yml`). Файл `pipeline/.env` **перебивается** пустыми значениями, если в корне нет переменных.
+Оркестратор берёт секреты **только** из `pipeline/.env`. Корневой `.env` — каталог (Mongo, Ollama, `PORT=3001`), Compose его в контейнер оркестратора не подставляет.
 
 ```powershell
-copy pipeline\.env.example .env
+copy pipeline\.env.example pipeline\.env
 ```
 
 Заполните:
@@ -119,9 +119,11 @@ CURSOR_REPO_URL=https://github.com/AlexeyAbretov/llm_app_dev
 CURSOR_STARTING_REF=main
 ```
 
-`.env` в git не коммитить (уже в `.gitignore`).
+`pipeline/.env` и корневой `.env` в git не коммитить (уже в `.gitignore`).
 
 Если репозиторий или ветка другие — поменяйте `GITHUB_REPO`, `CURSOR_REPO_URL`, `CURSOR_STARTING_REF` (имя ветки должно существовать на GitHub).
+
+Если ключи раньше лежали в корневом `.env` — перенесите `GITHUB_*` и `CURSOR_*` в `pipeline/.env` и удалите их из корня.
 
 ---
 
@@ -143,7 +145,7 @@ docker compose -f docker-compose.pipeline.yml logs -f orchestrator
 
 Ожидаемые логи без issue: `poll tick`, без `GITHUB_TOKEN or GITHUB_REPO empty`.
 
-После правки `.env`:
+После правки `pipeline/.env`:
 
 ```powershell
 docker compose -f docker-compose.pipeline.yml up -d --force-recreate
@@ -200,7 +202,7 @@ docker compose -f docker-compose.pipeline.yml up -d
 
 | Симптом | Что делать |
 |---------|------------|
-| `poll skip: GITHUB_TOKEN or GITHUB_REPO empty` | Ключи в **корневом** `.env`, затем `--force-recreate` |
+| `poll skip: GITHUB_TOKEN or GITHUB_REPO empty` | Ключи в **`pipeline/.env`**, не в корневом `.env`; затем `--force-recreate` |
 | `getaddrinfo ENOTFOUND api.github.com` | DNS в контейнере (Docker Desktop). Тик пропускается, следующий полл повторит. В compose заданы `8.8.8.8` / `1.1.1.1`; пересобрать: `up -d --force-recreate`. Если в стеке `listNeedsPlan` — старый образ, нужен `--build` с ветки P4 |
 | `GitHub comment 403` / labels 403 | PAT: Issues **Read and write**, owner = текущий репо |
 | `GitHub pulls 403` | PAT: **Pull requests → Read** (проверка `Fixes #N`) |

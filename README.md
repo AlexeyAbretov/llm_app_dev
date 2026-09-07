@@ -15,8 +15,8 @@
 Пошагово: [docs/AGENT_PIPELINE_SETUP.md](docs/AGENT_PIPELINE_SETUP.md).
 
 ```powershell
-copy pipeline\.env.example .env
-# вписать GITHUB_TOKEN и CURSOR_API_KEY в корневой .env
+copy pipeline\.env.example pipeline\.env
+# вписать GITHUB_TOKEN и CURSOR_API_KEY в pipeline/.env
 docker compose -f docker-compose.pipeline.yml up --build -d
 # http://127.0.0.1:3020/health
 ```

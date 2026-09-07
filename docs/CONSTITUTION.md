@@ -1,6 +1,6 @@
 # Конституция проекта: Каталог объектов
 
-> Версия: 1.3 · Дата: 2026-09-07
+> Версия: 1.4 · Дата: 2026-09-07
 
 ## 1. Миссия
 
@@ -138,7 +138,7 @@ Merge в `main` допустим когда:
 │             Zod (валидация)                     │
 ├─────────────────────────────────────────────────┤
 │  AI:        Ollama (localhost:11434)            │
-│             Vision:  qwen2-vl:7b                │
+│             Vision:  qwen2.5vl:7b               │
 │             Embed:   nomic-embed-text             │
 ├─────────────────────────────────────────────────┤
 │  DB:        MongoDB 7 (local, порт 27017)       │
@@ -182,7 +182,7 @@ Merge в `main` допустим когда:
 | Технология | Почему выбрана | Альтернативы и почему нет |
 |------------|---------------|---------------------------|
 | **Ollama** | Простейший запуск локальных LLM; REST API из Node; управление моделями (`pull`); GPU из коробки на Windows | LM Studio — нет headless API для automation; llama.cpp напрямую — больше низкоуровневой работы; OpenAI/Claude API — нарушает принцип локальности (P1) |
-| **qwen2-vl:7b** | Multimodal (vision); хорошо понимает русский; 7B в Q4 помещается в 8 GB VRAM (~5–6 GB); адекватное качество title/description | llava:7b — слабее с русским; llama3.2-vision:11b — впритык по VRAM на 8 GB; GPT-4V API — облако; модели 13B+ — OOM на RTX 4060 Laptop |
+| **qwen2.5vl:7b** | Multimodal (vision) в библиотеке Ollama; наследник снятого `qwen2-vl:7b`; русский; 7B в Q4 на 8 GB VRAM; нужен Ollama ≥ 0.7.0 | llava:7b — слабее с русским; llama3.2-vision:11b — впритык по VRAM; GPT-4V API — облако; модели 13B+ — OOM на RTX 4060 Laptop |
 | **nomic-embed-text** | 768 dims, быстрая (~1 с), доступна в Ollama; одна инфраструктура (Ollama) для vision и embed | sentence-transformers — отдельный Python runtime; OpenAI embeddings — облако; CLIP embeddings — другой semantic space, хуже для text search |
 | **Ollama на хосте (не Docker)** | Docker на Windows не пробрасывает GPU в контейнер без WSL2 + NVIDIA toolkit; Ollama natively видит RTX 4060 | Ollama in Docker — сложная GPU-настройка; CPU-only — vision 2–5 мин вместо 10–30 с |
 
@@ -325,7 +325,7 @@ interface CatalogItem {
 ## 9. Критерии готовности MVP
 
 - [ ] `docker compose up` поднимает MongoDB
-- [ ] Ollama с `qwen2-vl:7b` и `nomic-embed-text` отвечает на `/api/health`
+- [ ] Ollama с `qwen2.5vl:7b` и `nomic-embed-text` отвечает на `/api/health`
 - [ ] Upload фото → через ≤60 с объект в статусе `ready` с осмысленным title/description
 - [ ] Каталог показывает все `ready` объекты
 - [ ] Поиск «ваза» находит загруженную вазу в top-5
