@@ -346,6 +346,7 @@ interface CatalogItem {
 
 - [MVP Plan](./MVP_PLAN.md) — пошаговый план каталога
 - [Агентный пайплайн](./AGENT_PIPELINE.md) — контракт процесса
+- [Запуск пайплайна](./AGENT_PIPELINE_SETUP.md) — с нуля: Docker, ключи, labels
 - [План пайплайна](./AGENT_PIPELINE_PLAN.md) — этапы `pipeline/N-…`
 - [LangGraph.js](https://langchain-ai.github.io/langgraphjs/)
 - [Ollama API](https://github.com/ollama/ollama/blob/main/docs/api.md)

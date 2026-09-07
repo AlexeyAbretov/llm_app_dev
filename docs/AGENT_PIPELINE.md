@@ -4,6 +4,7 @@
 > Продукт (каталог, MongoDB, Ollama) остаётся на машине разработчика.
 
 Полный план этапов: [AGENT_PIPELINE_PLAN.md](./AGENT_PIPELINE_PLAN.md).  
+Запуск с нуля: [AGENT_PIPELINE_SETUP.md](./AGENT_PIPELINE_SETUP.md).  
 Принципы продукта: [CONSTITUTION.md](./CONSTITUTION.md).
 
 ## 1. Целевая схема

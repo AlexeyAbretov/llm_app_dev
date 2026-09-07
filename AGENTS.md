@@ -11,6 +11,7 @@
 | [docs/CONSTITUTION.md](docs/CONSTITUTION.md) | Принципы, архитектура, API, schema |
 | [docs/MVP_PLAN.md](docs/MVP_PLAN.md) | Этапы каталога (`stage/N-…`) |
 | [docs/AGENT_PIPELINE.md](docs/AGENT_PIPELINE.md) | Контракт агентного пайплайна |
+| [docs/AGENT_PIPELINE_SETUP.md](docs/AGENT_PIPELINE_SETUP.md) | Запуск оркестратора с нуля |
 | [docs/AGENT_PIPELINE_PLAN.md](docs/AGENT_PIPELINE_PLAN.md) | Этапы пайплайна (`pipeline/N-…`) |
 | [.cursor/rules/](.cursor/rules/) | Правила для Cursor |
 
@@ -36,7 +37,7 @@ ollama serve                   # Ollama (на хосте, нужен GPU)
 npm run dev                    # frontend + backend
 npm run dev:backend            # только backend
 npm run dev:frontend           # только frontend
-docker compose -f docker-compose.pipeline.yml up --build   # оркестратор, :3020/health
+docker compose -f docker-compose.pipeline.yml up --build -d   # оркестратор, см. docs/AGENT_PIPELINE_SETUP.md
 ```
 
 ## Железо

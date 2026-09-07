@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Агентный пайплайн
 
-Контракт: `docs/AGENT_PIPELINE.md`. Этапы: `docs/AGENT_PIPELINE_PLAN.md`.
+Контракт: `docs/AGENT_PIPELINE.md`. Запуск: `docs/AGENT_PIPELINE_SETUP.md`. Этапы: `docs/AGENT_PIPELINE_PLAN.md`.
 
 ## Трек отдельно от каталога
 

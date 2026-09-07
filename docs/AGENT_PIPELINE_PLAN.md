@@ -141,8 +141,8 @@ Issue → план → PR → проверка → draft release → апрув 
 
 ### Проверка
 
-- [ ] Тестовая feature → план на русском, `ready-for-dev`
-- [ ] Задача вне MVP (auth, photo search) → отказ, не реализация
+- [x] Тестовая feature → план на русском, `ready-for-dev`
+- [x] Задача вне MVP (auth, photo search) → отказ, не реализация
 
 ---
 
