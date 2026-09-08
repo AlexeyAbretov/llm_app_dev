@@ -200,6 +200,146 @@ export class GitHubClient {
       throw new Error(`GitHub remove label ${response.status}: ${text.slice(0, 500)}`);
     }
   }
+
+  async setIssueAssignees(issue: number, assignees: string[]): Promise<void> {
+    const { owner, repo } = this.repoPath();
+    const response = await githubFetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues/${issue}/assignees`,
+      {
+        method: "POST",
+        headers: { ...this.headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ assignees }),
+      },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub assignees ${response.status}: ${text.slice(0, 500)}`);
+    }
+  }
+
+  /** Repo owner login — default assignee / reviewer for release approval. */
+  releaseOwnerLogin(): string {
+    return this.repoPath().owner;
+  }
+
+  async requestPullReviewers(pr: number, reviewers: string[]): Promise<void> {
+    if (reviewers.length === 0) {
+      return;
+    }
+    const { owner, repo } = this.repoPath();
+    const response = await githubFetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${pr}/requested_reviewers`,
+      {
+        method: "POST",
+        headers: { ...this.headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewers }),
+      },
+    );
+    // Author cannot review own PR — treat as soft skip.
+    if (response.status === 422) {
+      return;
+    }
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub request review ${response.status}: ${text.slice(0, 500)}`);
+    }
+  }
+
+  async findReleaseByTag(tag: string): Promise<{ id: number; draft: boolean; html_url: string } | null> {
+    const { owner, repo } = this.repoPath();
+    const published = await githubFetch(
+      `https://api.github.com/repos/${owner}/${repo}/releases/tags/${encodeURIComponent(tag)}`,
+      { headers: this.headers() },
+    );
+    if (published.ok) {
+      const item = (await published.json()) as { id: number; draft: boolean; html_url: string };
+      return { id: item.id, draft: item.draft, html_url: item.html_url };
+    }
+    if (published.status !== 404) {
+      const text = await published.text();
+      throw new Error(`GitHub release by tag ${published.status}: ${text.slice(0, 500)}`);
+    }
+
+    // Drafts are not returned by /releases/tags/{tag} — list and match tag_name.
+    const url = new URL(`https://api.github.com/repos/${owner}/${repo}/releases`);
+    url.searchParams.set("per_page", "50");
+    const listed = await githubFetch(url, { headers: this.headers() });
+    if (!listed.ok) {
+      const text = await listed.text();
+      throw new Error(`GitHub list releases ${listed.status}: ${text.slice(0, 500)}`);
+    }
+    const items = (await listed.json()) as Array<{
+      id: number;
+      draft: boolean;
+      html_url: string;
+      tag_name: string;
+    }>;
+    const found = items.find((item) => item.tag_name === tag);
+    if (!found) {
+      return null;
+    }
+    return { id: found.id, draft: found.draft, html_url: found.html_url };
+  }
+
+  /**
+   * Creates or updates a **draft** release. Never publishes (draft stays true).
+   * Does not create a git tag until a human publishes.
+   */
+  async upsertDraftRelease(params: {
+    tag: string;
+    name: string;
+    body: string;
+  }): Promise<{ id: number; html_url: string }> {
+    const { owner, repo } = this.repoPath();
+    const existing = await this.findReleaseByTag(params.tag);
+    if (existing && !existing.draft) {
+      throw new Error(`Release ${params.tag} already published; refusing to modify`);
+    }
+    if (existing?.draft) {
+      const response = await githubFetch(
+        `https://api.github.com/repos/${owner}/${repo}/releases/${existing.id}`,
+        {
+          method: "PATCH",
+          headers: { ...this.headers(), "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tag_name: params.tag,
+            name: params.name,
+            body: params.body,
+            draft: true,
+            prerelease: false,
+          }),
+        },
+      );
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`GitHub update draft release ${response.status}: ${text.slice(0, 500)}`);
+      }
+      const item = (await response.json()) as { id: number; html_url: string };
+      return { id: item.id, html_url: item.html_url };
+    }
+
+    const response = await githubFetch(
+      `https://api.github.com/repos/${owner}/${repo}/releases`,
+      {
+        method: "POST",
+        headers: { ...this.headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tag_name: params.tag,
+          name: params.name,
+          body: params.body,
+          draft: true,
+          prerelease: false,
+          generate_release_notes: false,
+        }),
+      },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub create draft release ${response.status}: ${text.slice(0, 500)}`);
+    }
+    const item = (await response.json()) as { id: number; html_url: string };
+    return { id: item.id, html_url: item.html_url };
+  }
 }
 
 export function jobComment(params: {

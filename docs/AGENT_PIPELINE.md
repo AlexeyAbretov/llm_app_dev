@@ -69,28 +69,26 @@ Git — **только GitHub** (`origin`). Локальная Gitea не исп
 
 Старт разработчика: `bug` или `feature` **и** `ready-for-dev`, нет открытого PR `Fixes #N` (или ветки `issue/<n>-…`). При старте оркестратор ставит `in-dev`. После PR: снимает `ready-for-dev` и `in-dev`, ставит `in-qa`. Если агент упал или PR нет — `needs-human`. Если PR уже открыт, агент не стартует, только метка `in-qa`.
 
-Старт тестировщика: `bug` или `feature` **и** `in-qa`, есть открытый PR `Fixes #N`. Перед запуском: `in-qa` → `qa-in-progress`. Агент возвращает номера дефектов в `PIPELINE_BUG_ISSUES`. Если дефектов нет: `qa-in-progress` → `qa-passed`. Если дефекты есть: оркестратор ставит им `bug` + `needs-plan`, а родителя возвращает в `in-qa`. Ошибка Cursor, протокола или маркировки → `needs-human`. Только `qa-passed` допускается к P6. CI на PR: GitHub Actions job `ci`; required check на `main` включается ruleset вручную.
+Старт тестировщика: `bug` или `feature` **и** `in-qa`, есть открытый PR `Fixes #N`. Перед запуском: `in-qa` → `qa-in-progress`. Агент возвращает номера дефектов в `PIPELINE_BUG_ISSUES`. Если дефектов нет: `qa-in-progress` → `qa-passed`. Если дефекты есть: оркестратор ставит им `bug` + `needs-plan`, а родителя возвращает в `in-qa`. Ошибка Cursor, протокола или маркировки → `needs-human`. Только `qa-passed` допускается к релиз-менеджеру. CI на PR: GitHub Actions job `ci`; required check на `main` включается ruleset вручную.
 
+Старт релиз-менеджера: `bug` или `feature` **и** `qa-passed`, нет `ready-for-release` / `release-approved`. Агент возвращает тег, список PR и changelog-маркеры. Оркестратор: **assignee** = owner репо, request review на перечисленные PR, **Draft** GitHub Release (без publish и без создания git tag до Publish), label `ready-for-release`. Ошибка Cursor / протокола / GitHub → `needs-human`. После `release-approved` merge / Publish / tag делает **человек** (автоmerge вне scope первой волны).
 
 ## 4. Апрув релиза (как RM сообщает человеку)
 
 Облачный агент не пишет в личный чат Cursor. Канал — **GitHub**.
 
-Обязательные действия релиз-менеджера:
+Обязательные действия релиз-менеджера (оркестратор + агент):
 
-1. Label `ready-for-release`, **assignee** — владелец репо.
+1. Label `ready-for-release`, **assignee** — владелец репо (`GITHUB_REPO` owner).
 2. Комментарий с чеклистом: состав milestone, ссылки на PR, статус CI, риски, явная фраза что нужен апрув.
-3. **Request review** на открытые PR, входящие в релиз.
-4. **Draft GitHub Release** (без publish).
+3. **Request review** на открытые PR из `PIPELINE_PR_NUMBERS`.
+4. **Draft GitHub Release** (без publish) по `PIPELINE_RELEASE_TAG` и телу `PIPELINE_CHANGELOG_*`.
 
-Человек апрувит одним из способов (достаточно одного, зафиксировать при реализации P6):
+**Апрув человека (зафиксировано):** label `release-approved` на issue. Approve review / Environment `release` — опционально позже, не обязательны для MVP.
 
-- label `release-approved`, или
-- Approve review + Environment `release` required reviewers (когда появится Actions).
+До апрува: **нет** merge в `main`, **нет** tag, **нет** Publish Release, **нет** деплоя. Оркестратор не публикует draft и не мержит PR.
 
-До апрува: **нет** merge в `main`, **нет** tag, **нет** Publish Release, **нет** деплоя.
-
-Первая волна: merge в `main` делает человек; агент готовит notes и draft. Автоmerge — только после отдельного решения.
+Первая волна: после `release-approved` merge в `main` и Publish Release делает человек; агент готовит notes и draft. Автоmerge — только после отдельного решения.
 
 ## 5. Оркестратор
 

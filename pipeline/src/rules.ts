@@ -3,6 +3,7 @@ import type { Role } from "./types.js";
 export type AnalystDecision = "ready-for-dev" | "needs-human";
 export type DeveloperDecision = "in-qa" | "needs-human";
 export type TesterDecision = "in-qa" | "qa-passed" | "needs-human";
+export type ReleaseManagerDecision = "ready-for-release" | "needs-human";
 
 export function roleForLabels(labels: string[]): Role | null {
   if (labels.includes("needs-human")) {
@@ -29,6 +30,13 @@ export function roleForLabels(labels: string[]): Role | null {
     !labels.includes("ready-for-release")
   ) {
     return "tester";
+  }
+  if (
+    labels.includes("qa-passed") &&
+    !labels.includes("ready-for-release") &&
+    !labels.includes("release-approved")
+  ) {
+    return "release-manager";
   }
   return null;
 }
@@ -111,6 +119,75 @@ export function testerBugIssues(resultText: string | null): number[] | null {
         .filter((value) => Number.isSafeInteger(value) && value > 0),
     ),
   ];
+}
+
+export function releaseTag(resultText: string | null): string | null {
+  const marker = resultText?.match(/^PIPELINE_RELEASE_TAG:\s*(v?[0-9]+\.[0-9]+\.[0-9]+)\s*$/im);
+  if (!marker) {
+    return null;
+  }
+  const tag = marker[1];
+  return tag.startsWith("v") ? tag : `v${tag}`;
+}
+
+export function releasePrNumbers(resultText: string | null): number[] | null {
+  const marker = resultText?.match(
+    /^PIPELINE_PR_NUMBERS:\s*(none|(?:#?\d+(?:\s*,\s*#?\d+)*))\s*$/im,
+  );
+  if (!marker) {
+    return null;
+  }
+  if (marker[1].toLowerCase() === "none") {
+    return [];
+  }
+  return [
+    ...new Set(
+      marker[1]
+        .split(",")
+        .map((value) => Number(value.trim().replace(/^#/, "")))
+        .filter((value) => Number.isSafeInteger(value) && value > 0),
+    ),
+  ];
+}
+
+export function releaseChangelog(resultText: string | null): string | null {
+  if (!resultText) {
+    return null;
+  }
+  const block = resultText.match(
+    /PIPELINE_CHANGELOG_BEGIN\s*\n([\s\S]*?)\nPIPELINE_CHANGELOG_END/i,
+  );
+  if (!block) {
+    return null;
+  }
+  const body = block[1].trim();
+  return body.length > 0 ? body : null;
+}
+
+export function decideReleaseManagerOutcome(
+  runStatus: "finished" | "error" | "startup_error",
+  resultText: string | null,
+  tag: string | null,
+  prNumbers: number[] | null,
+  changelog: string | null,
+): ReleaseManagerDecision {
+  if (runStatus !== "finished") {
+    return "needs-human";
+  }
+  const marker = resultText?.match(
+    /^PIPELINE_LABELS:\s*(needs-human|ready-for-release)\s*$/im,
+  );
+  if (!marker) {
+    return "needs-human";
+  }
+  const requested = marker[1].toLowerCase() as ReleaseManagerDecision;
+  if (requested === "needs-human") {
+    return "needs-human";
+  }
+  if (tag && prNumbers !== null && changelog) {
+    return "ready-for-release";
+  }
+  return "needs-human";
 }
 
 export function prFixesIssue(pr: {

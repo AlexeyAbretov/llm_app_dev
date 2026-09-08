@@ -3,7 +3,7 @@
 Контракт (роли, labels): [AGENT_PIPELINE.md](./AGENT_PIPELINE.md).  
 Этапы разработки: [AGENT_PIPELINE_PLAN.md](./AGENT_PIPELINE_PLAN.md).
 
-Сейчас из коробки поднимаются **P0–P5**: оркестратор, аналитик, разработчик (PR), тестировщик по `in-qa`, GitHub Actions `ci` на PR. Релиз-менеджер и локальный деплой каталога — ещё не в коде.
+Сейчас из коробки поднимаются **P0–P6**: оркестратор, аналитик, разработчик (PR), тестировщик по `in-qa`, релиз-менеджер по `qa-passed` (draft Release + `ready-for-release`). Локальный деплой каталога — P7.
 
 Каталог объектов (Ollama, MongoDB) **не нужен**, чтобы запустить оркестратор.
 
@@ -17,6 +17,7 @@
 4. После ответа аналитика: комментарий со статусом, **отдельный комментарий с текстом плана**, снимается `needs-plan`, ставится `ready-for-dev` или `needs-human`.
 5. На `ready-for-dev` стартует разработчик (`in-dev`). После открытого PR `Fixes #N` — `in-qa` (не merge в `main`).
 6. На `in-qa` стартует тестировщик (ревью ветки PR). CI: workflow `.github/workflows/ci.yml`, job `ci`.
+7. На `qa-passed` стартует релиз-менеджер → draft Release, assignee owner, request review, `ready-for-release`. Publish / merge — после вашей метки `release-approved`, вручную.
 
 Повторный полл ту же пару `(issue, role)` не запускает — состояние в volume `jobs.json`.
 
@@ -58,6 +59,8 @@ Issues → Labels. Создайте, если нет (имена **точно** 
 | `in-qa` | PR ждёт QA или исправления дефектов |
 | `qa-in-progress` | тестировщик работает |
 | `qa-passed` | QA успешно пройден |
+| `ready-for-release` | RM собрал draft, ждёт апрув |
+| `release-approved` | человек разрешил merge/Publish (ставит вручную) |
 | `needs-human` | стоп автоматики |
 | `p0` … `p3` | приоритет (по желанию) |
 
@@ -73,7 +76,7 @@ Issues → Labels. Создайте, если нет (имена **точно** 
 
 1. GitHub (тот же owner, что у репо) → Settings → Developer settings → **Personal access tokens** → Fine-grained.
 2. Resource owner — владелец репо. Repository access — **Only select** → `llm_app_dev`.
-3. Repository permissions: **Issues → Read and write**, **Pull requests → Read**. Metadata — Read.
+3. Repository permissions: **Issues → Read and write**, **Pull requests → Read and write** (request review), **Contents → Read and write** (draft Releases). Metadata — Read.
 4. Скопируйте значение (`github_pat_...`).
 
 Проверка (токен только в своём терминале):
@@ -177,6 +180,8 @@ Volume `llm_app_dev_pipeline_data` хранит `jobs.json` (очередь). `d
 
 На `in-qa` с открытым PR: `-in-qa +qa-in-progress` → `role: tester`. Тестировщик возвращает `PIPELINE_BUG_ISSUES`; оркестратор ставит перечисленным issues `bug` + `needs-plan` и возвращает родителя в `in-qa`. Без дефектов: `-qa-in-progress +qa-passed`. Нет маркера, ошибка маркировки или ошибка агента: `+needs-human`. Без PR: `skip tester: no open Fixes PR`.
 
+На `qa-passed`: `role: release-manager`. Агент отдаёт `PIPELINE_RELEASE_TAG`, `PIPELINE_PR_NUMBERS`, блок changelog и `PIPELINE_LABELS`. Оркестратор создаёт/обновляет **draft** Release, назначает owner, просит review на PR, ставит `ready-for-release`. Publish и merge в `main` оркестратор **не** делает. Апрув: вручную label `release-approved`, затем Publish Release / merge PR руками. Сбой протокола или GitHub API → `+needs-human`.
+
 В issue — комментарии пайплайна и (обычно) план от агента. В Cursor Web агенты SDK: Filter → Source → **SDK**.
 
 CI на каждый PR: `.github/workflows/ci.yml`, check **`ci`**. Чтобы красный CI блокировал merge в `main`: GitHub → Settings → Rules → Rulesets (required status check `ci`). Пока ruleset не включён, merge руками всё равно возможен.
@@ -199,9 +204,9 @@ docker volume rm llm_app_dev_pipeline_data
 docker compose -f docker-compose.pipeline.yml up -d
 ```
 
-После сброса: аналитик снова при `needs-plan`, разработчик — при `ready-for-dev`, тестировщик — при `in-qa`. Чтобы не жечь квоту — снимите эти метки.
+После сброса: аналитик снова при `needs-plan`, разработчик — при `ready-for-dev`, тестировщик — при `in-qa`, RM — при `qa-passed` без `ready-for-release`. Чтобы не жечь квоту — снимите эти метки.
 
-Очередь — открытые issue с `needs-plan`, `ready-for-dev` или `in-qa` (не фильтр GitHub `since`).
+Очередь — открытые issue с `needs-plan`, `ready-for-dev`, `in-qa` или `qa-passed` (не фильтр GitHub `since`).
 
 ---
 
@@ -212,12 +217,13 @@ docker compose -f docker-compose.pipeline.yml up -d
 | `poll skip: GITHUB_TOKEN or GITHUB_REPO empty` | Ключи в **`pipeline/.env`**, не в корневом `.env`; затем `--force-recreate` |
 | `getaddrinfo ENOTFOUND api.github.com` | DNS в контейнере (Docker Desktop). Тик пропускается, следующий полл повторит. В compose заданы `8.8.8.8` / `1.1.1.1`; пересобрать: `up -d --force-recreate`. Если в стеке `listNeedsPlan` — старый образ, нужен `--build` с ветки P4 |
 | `GitHub comment 403` / labels 403 | PAT: Issues **Read and write**, owner = текущий репо |
-| `GitHub pulls 403` | PAT: **Pull requests → Read** (проверка `Fixes #N`) |
+| `GitHub pulls 403` | PAT: **Pull requests → Read** (проверка `Fixes #N`); для RM — **Read and write** |
+| `GitHub create draft release 403` | PAT: **Contents → Read and write** |
 | `Cursor is not available in your region` | Cloud Agents недоступны с этого IP/аккаунта; оркестратор тут ни при чём |
 | `Failed to verify existence of branch 'main'` | Ветка есть на GitHub; Cursor GitHub App видит **этот** репо (owner, не collaborator) |
 | `resource_exhausted` retryable=true | Лимит Cloud Agents / Usage; подождать, не чистить `jobs.json` в цикле |
 | Агент не стартует, только `needs-plan` | Добавьте `feature` или `bug` |
-| Метка не ставится, label 404/422 | Создайте `ready-for-dev`, `needs-human`, `in-dev`, `in-qa`, `qa-in-progress`, `qa-passed` в репо |
+| Метка не ставится, label 404/422 | Создайте `ready-for-dev`, `needs-human`, `in-dev`, `in-qa`, `qa-in-progress`, `qa-passed`, `ready-for-release`, `release-approved` в репо |
 | Повторно не берёт issue | Так задумано, если job уже есть; сброс `jobs.json` |
 | Issue с `feature`+`needs-plan` «не подхватывается» | Старый баг: фильтр `since`. Нужна версия без `since` + пересборка compose. Не обязательно комментировать issue |
 | `agentId` пустой, сразу `cursor run failed` | Смотреть текст `Ошибка:` в комментарии issue или `exec cat /data/jobs.json` |
@@ -226,8 +232,9 @@ docker compose -f docker-compose.pipeline.yml up -d
 
 ## 10. Что ещё не запускается
 
-- Релиз-менеджер, локальный deployer каталога.
+- Локальный deployer каталога (P7).
 - UI оркестратора.
+- Автоmerge / авто-Publish после `release-approved`.
 - Каталог: `docker compose up` MongoDB / `ollama serve` — отдельный трек, [MVP_PLAN.md](./MVP_PLAN.md).
 
 Промпты ролей: `pipeline/prompts/`.

@@ -7,7 +7,11 @@ import { jobLog } from "./log.js";
 import {
   decideAnalystOutcome,
   decideDeveloperOutcome,
+  decideReleaseManagerOutcome,
   decideTesterOutcome,
+  releaseChangelog,
+  releasePrNumbers,
+  releaseTag,
   roleForLabels,
   testerBugIssues,
 } from "./rules.js";
@@ -72,6 +76,7 @@ async function pollOnce(
         github.listOpenIssuesByLabel("needs-plan"),
         github.listOpenIssuesByLabel("ready-for-dev"),
         github.listOpenIssuesByLabel("in-qa"),
+        github.listOpenIssuesByLabel("qa-passed"),
       ]),
     );
   } catch (err) {
@@ -85,7 +90,7 @@ async function pollOnce(
       jobLog(
         logger,
         { issue: issue.number, role: null, agentId: null, runId: null },
-        "skip: labels do not match analyst, developer or tester trigger",
+        "skip: labels do not match a pipeline role trigger",
       );
       continue;
     }
@@ -130,6 +135,27 @@ async function labelTesterBugs(
   return children;
 }
 
+async function applyReleasePackage(
+  github: GitHubClient,
+  issue: number,
+  tag: string,
+  prNumbers: number[],
+  changelog: string,
+): Promise<string> {
+  const owner = github.releaseOwnerLogin();
+  await github.setIssueAssignees(issue, [owner]);
+  for (const pr of prNumbers) {
+    await github.requestPullReviewers(pr, [owner]);
+  }
+  const release = await github.upsertDraftRelease({
+    tag,
+    name: tag,
+    body: changelog,
+  });
+  await github.addIssueLabels(issue, ["ready-for-release"]);
+  return release.html_url;
+}
+
 async function handleIssue(
   config: Config,
   logger: FastifyBaseLogger,
@@ -159,15 +185,15 @@ async function handleIssue(
     }
   }
 
-  let testerPull: GitHubPull | undefined;
-  if (role === "tester") {
+  let linkedPull: GitHubPull | undefined;
+  if (role === "tester" || role === "release-manager") {
     try {
-      testerPull = (await github.findOpenFixPr(issue.number)) ?? undefined;
+      linkedPull = (await github.findOpenFixPr(issue.number)) ?? undefined;
     } catch (err) {
       logger.error({ err, issue: issue.number }, "github pulls failed");
       return;
     }
-    if (!testerPull) {
+    if (role === "tester" && !linkedPull) {
       jobLog(logger, fields, "skip tester: no open Fixes PR");
       return;
     }
@@ -241,7 +267,7 @@ async function handleIssue(
         logger.error({ err, issue: issue.number }, "github comment failed");
       }
     },
-    testerPull,
+    linkedPull,
   );
 
   const status = outcome.status === "finished" ? "finished" : outcome.status;
@@ -351,6 +377,61 @@ async function handleIssue(
       );
     } catch (err) {
       logger.error({ err, issue: issue.number }, "github labels failed");
+    }
+  }
+
+  if (role === "release-manager") {
+    const tag = releaseTag(outcome.resultText);
+    const prNumbers = releasePrNumbers(outcome.resultText);
+    const changelog = releaseChangelog(outcome.resultText);
+    let releaseDecision = decideReleaseManagerOutcome(
+      outcome.status,
+      outcome.resultText,
+      tag,
+      prNumbers,
+      changelog,
+    );
+    if (releaseDecision === "ready-for-release" && tag && prNumbers && changelog) {
+      try {
+        const releaseUrl = await applyReleasePackage(
+          github,
+          issue.number,
+          tag,
+          prNumbers,
+          changelog,
+        );
+        jobLog(
+          logger,
+          {
+            issue: issue.number,
+            role,
+            agentId: outcome.agentId,
+            runId: outcome.runId,
+          },
+          `draft release ${tag}: ${releaseUrl}; +ready-for-release`,
+        );
+      } catch (err) {
+        releaseDecision = "needs-human";
+        logger.error({ err, issue: issue.number }, "release package failed");
+      }
+    }
+    decision = releaseDecision;
+    if (releaseDecision === "needs-human") {
+      try {
+        await github.addIssueLabels(issue.number, ["needs-human"]);
+        jobLog(
+          logger,
+          {
+            issue: issue.number,
+            role,
+            agentId: outcome.agentId,
+            runId: outcome.runId,
+          },
+          "labels: +needs-human",
+        );
+      } catch (err) {
+        logger.error({ err, issue: issue.number }, "github labels failed");
+      }
     }
   }
 

@@ -194,15 +194,15 @@ Issue → план → PR → проверка → draft release → апрув 
 
 ### Шаги
 
-1. Триггер: milestone готов / `ready-for-release`.
-2. Changelog, draft Release, assignee, request review (см. контракт §4).
-3. Merge/tag/publish — только после `release-approved` (в MVP пайплайна merge предпочтительно руками).
-4. Колонка «ожидает апрува» в UI, если UI уже есть.
+1. Триггер: `qa-passed` (тип `bug`/`feature`); итог пакета — label `ready-for-release`.
+2. Changelog-маркеры агента → draft Release, assignee owner, request review (см. контракт §4).
+3. Merge/tag/publish — только после `release-approved`; в MVP делает человек.
+4. Колонка «ожидает апрува» в UI — когда появится UI (вне этого этапа).
 
 ### Проверка
 
-- [ ] Без апрува tag и Publish не появляются
-- [ ] С апрувом (ручной merge + publish или согласованный автошаг) — Release с телом из issues
+- [ ] Без апрува код создаёт только **draft** Release; Publish и git tag не вызываются
+- [ ] После ручного `release-approved` + Publish человеком — Release с телом из changelog агента
 
 ---
 
