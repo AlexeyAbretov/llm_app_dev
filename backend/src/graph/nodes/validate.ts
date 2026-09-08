@@ -28,17 +28,23 @@ function hasWebpMagic(buffer: Buffer): boolean {
   );
 }
 
-function matchesMagicBytes(buffer: Buffer, mime: string): boolean {
-  switch (mime) {
-    case 'image/jpeg':
-      return hasJpegMagic(buffer);
-    case 'image/png':
-      return hasPngMagic(buffer);
-    case 'image/webp':
-      return hasWebpMagic(buffer);
-    default:
-      return false;
+export function detectImageMime(
+  buffer: Buffer,
+): 'image/jpeg' | 'image/png' | 'image/webp' | null {
+  if (hasJpegMagic(buffer)) {
+    return 'image/jpeg';
   }
+  if (hasPngMagic(buffer)) {
+    return 'image/png';
+  }
+  if (hasWebpMagic(buffer)) {
+    return 'image/webp';
+  }
+  return null;
+}
+
+function matchesMagicBytes(buffer: Buffer, mime: string): boolean {
+  return detectImageMime(buffer) === mime;
 }
 
 export function createValidateNode(deps: PipelineDeps) {

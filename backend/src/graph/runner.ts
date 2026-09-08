@@ -12,7 +12,7 @@ export interface PipelineRunner {
 export function createPipelineRunner(deps: PipelineDeps): PipelineRunner {
   const queue: PipelineInput[] = [];
   let processing = false;
-  let chain: Promise<void> = Promise.resolve();
+  const drainWaiters: Array<() => void> = [];
 
   async function runOne(input: PipelineInput): Promise<void> {
     await deps.repository.update(input.itemId, { status: 'processing' });
@@ -29,31 +29,45 @@ export function createPipelineRunner(deps: PipelineDeps): PipelineRunner {
     }
   }
 
-  function processNext(): Promise<void> {
-    if (processing || queue.length === 0) {
-      return chain;
+  function notifyIdle(): void {
+    if (processing || queue.length > 0) {
+      return;
+    }
+    const waiters = drainWaiters.splice(0);
+    for (const resolve of waiters) {
+      resolve();
+    }
+  }
+
+  function processNext(): void {
+    if (processing) {
+      return;
+    }
+    const input = queue.shift();
+    if (!input) {
+      notifyIdle();
+      return;
     }
 
     processing = true;
-    const input = queue.shift()!;
-
-    chain = chain
-      .then(() => runOne(input))
-      .finally(() => {
-        processing = false;
-      })
-      .then(() => processNext());
-
-    return chain;
+    void runOne(input).finally(() => {
+      processing = false;
+      processNext();
+    });
   }
 
   return {
     enqueue(input: PipelineInput) {
       queue.push(input);
-      void processNext();
+      processNext();
     },
     drain() {
-      return chain;
+      if (!processing && queue.length === 0) {
+        return Promise.resolve();
+      }
+      return new Promise<void>((resolve) => {
+        drainWaiters.push(resolve);
+      });
     },
     pendingCount() {
       return queue.length;

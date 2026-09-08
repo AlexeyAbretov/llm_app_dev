@@ -12,6 +12,7 @@ import { createPipelineRunner } from '../src/graph/runner.js';
 import { CatalogRepository } from '../src/repositories/catalogRepository.js';
 import { ensureCatalogIndexes } from '../src/repositories/indexes.js';
 import { checkHealth } from '../src/services/ollama.js';
+import { detectImageMime } from '../src/graph/nodes/validate.js';
 import { parseVisionResponse } from '../src/services/llmParser.js';
 
 const monorepoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..');
@@ -147,11 +148,18 @@ async function testHappyPathE2E(
   }
 
   const buffer = await readFile(imagePath);
+  const mime = detectImageMime(buffer);
+  if (!mime) {
+    throw new Error(
+      `E2E: файл не jpeg/png/webp (часто .jpg оказывается webp). Путь: ${imagePath}`,
+    );
+  }
+
   const created = await repo.create({
     image: {
       storage: 'disk',
       ref: 'pending/e2e.jpg',
-      mime: 'image/jpeg',
+      mime,
       originalName: 'test.jpg',
     },
   });
@@ -160,7 +168,7 @@ async function testHappyPathE2E(
   runner.enqueue({
     itemId: created._id,
     buffer,
-    mime: 'image/jpeg',
+    mime,
     originalName: 'test.jpg',
   });
 
@@ -190,6 +198,13 @@ async function testParserReference(): Promise<void> {
 {"title":"V","description":"D","tags":["a","b","c"]}
 \`\`\``);
   console.log('parseVisionResponse ok:', parsed.title);
+
+  const spaced = parseVisionResponse(
+    '{"title":"V","description":"D","tags":["Красные губы","Обезьяна","портрет"]}',
+  );
+  if (spaced.tags.join(',') !== 'красные-губы,обезьяна,портрет') {
+    throw new Error(`normalize tags: ${spaced.tags.join(',')}`);
+  }
 }
 
 async function main(): Promise<void> {
