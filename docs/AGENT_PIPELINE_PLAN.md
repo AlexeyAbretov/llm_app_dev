@@ -250,14 +250,15 @@ Issue → план → PR → проверка → draft release → апрув 
 
 ### Шаги
 
-1. Cron оркестратора (~раз в час): due milestone сегодня, есть tag, нет `deployed` → deployer.
-2. Дата без tag → комментарий `blocked: no tag`, compose не трогать.
-3. Идемпотентный деплой. Кратко в README пайплайна: логи, как остановить полл.
+1. Cron оркестратора (`SCHEDULE_INTERVAL_MS`, ~1 ч): open milestone due сегодня.
+2. Нет tag / Release → комментарий `blocked: no tag` на issues milestone; compose не трогать.
+3. Есть tag, ещё нет записи в `deploys.json` → `deploy-requests.json` → deployer (идемпотентно).
+4. Краткий `pipeline/README.md`: логи, stop полла, schedule.
 
 ### Проверка
 
 - [ ] Due сегодня без tag → комментарий, без compose
-- [ ] С tag → один деплой на несколько тиков cron
+- [ ] С tag → один деплой на несколько тиков cron / poll
 
 ---
 

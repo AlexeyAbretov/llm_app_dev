@@ -12,6 +12,7 @@
 | [docs/MVP_PLAN.md](docs/MVP_PLAN.md) | Этапы каталога (`stage/N-…`) |
 | [docs/AGENT_PIPELINE.md](docs/AGENT_PIPELINE.md) | Контракт агентного пайплайна |
 | [docs/AGENT_PIPELINE_SETUP.md](docs/AGENT_PIPELINE_SETUP.md) | Запуск оркестратора с нуля |
+| [pipeline/README.md](pipeline/README.md) | Логи, stop полла, schedule (P9) |
 | [docs/AGENT_PIPELINE_PLAN.md](docs/AGENT_PIPELINE_PLAN.md) | Этапы пайплайна (`pipeline/N-…`) |
 | [.cursor/rules/](.cursor/rules/) | Правила для Cursor |
 

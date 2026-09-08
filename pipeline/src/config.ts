@@ -3,6 +3,8 @@ import { z } from "zod";
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3020),
   POLL_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
+  /** Hourly milestone due check on orchestrator (P9). */
+  SCHEDULE_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
   GITHUB_TOKEN: z.string().default(""),
   GITHUB_REPO: z.string().default(""),
   CURSOR_API_KEY: z.string().default(""),

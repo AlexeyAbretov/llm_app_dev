@@ -3,7 +3,7 @@
 Контракт (роли, labels): [AGENT_PIPELINE.md](./AGENT_PIPELINE.md).  
 Этапы разработки: [AGENT_PIPELINE_PLAN.md](./AGENT_PIPELINE_PLAN.md).
 
-Сейчас из коробки поднимаются **P0–P8**: оркестратор, роли Cloud, deployer, цикл QA (`fix-round`, re-QA родителя). UI оркестратора и P9 — позже.
+Сейчас из коробки поднимаются **P0–P9**: оркестратор (в т.ч. hourly milestone due), роли Cloud, deployer, цикл QA. UI оркестратора — отдельный этап.
 
 Каталог объектов (Ollama, MongoDB) **не нужен**, чтобы запустить оркестратор.
 
@@ -153,7 +153,9 @@ docker compose -f docker-compose.pipeline.yml logs -f orchestrator
 docker compose -f docker-compose.pipeline.yml logs -f deployer
 ```
 
-Ожидаемые логи орка без issue: `poll tick`. Deployer: `deploy poll tick`, без `GITHUB_TOKEN or GITHUB_REPO empty`.
+Ожидаемые логи орка без issue: `poll tick`, `schedule tick`. Deployer: `deploy poll tick`, без `GITHUB_TOKEN or GITHUB_REPO empty`.
+
+Для быстрой проверки schedule без часа ожидания временно в `pipeline/.env`: `SCHEDULE_INTERVAL_MS=60000`, затем `--force-recreate`.
 
 У `orchestrator` **нет** docker.sock. Проверка (должен упасть / не видеть демон):
 
@@ -248,10 +250,11 @@ docker compose -f docker-compose.pipeline.yml up -d
 
 ## 10. Что ещё не запускается
 
-- UI оркестратора.
+- UI оркестратора (`pipeline/ui-jobs`).
 - Автоmerge / авто-Publish после `release-approved`.
-- Cron due milestone (P9).
 - Полноценный checkout tag + app-контейнер каталога (сейчас stub или только mongo compose).
 - Каталог: Ollama на хосте — [MVP_PLAN.md](./MVP_PLAN.md).
+
+Кратко про логи и stop: [pipeline/README.md](../pipeline/README.md).
 
 Промпты ролей: `pipeline/prompts/`.

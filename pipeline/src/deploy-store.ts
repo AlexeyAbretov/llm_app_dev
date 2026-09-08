@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 export type DeployRecord = {
+  /** GitHub release id, or 0 for schedule/tag-only deploy. */
   releaseId: number;
   tag: string;
   status: "deployed" | "deploy-failed";
@@ -37,16 +38,39 @@ export class DeployStore {
   }
 
   has(releaseId: number): boolean {
+    if (releaseId === 0) {
+      return false;
+    }
     return this.load().deploys.some((item) => item.releaseId === releaseId);
   }
 
+  hasTag(tag: string): boolean {
+    return this.load().deploys.some((item) => item.tag === tag);
+  }
+
+  hasSuccessfulTag(tag: string): boolean {
+    return this.load().deploys.some((item) => item.tag === tag && item.status === "deployed");
+  }
+
   deployedIds(): Set<number> {
-    return new Set(this.load().deploys.map((item) => item.releaseId));
+    return new Set(
+      this.load()
+        .deploys.filter((item) => item.releaseId !== 0)
+        .map((item) => item.releaseId),
+    );
   }
 
   record(entry: DeployRecord): void {
     const data = this.load();
-    data.deploys = data.deploys.filter((item) => item.releaseId !== entry.releaseId);
+    data.deploys = data.deploys.filter((item) => {
+      if (entry.releaseId !== 0 && item.releaseId === entry.releaseId) {
+        return false;
+      }
+      if (item.tag === entry.tag) {
+        return false;
+      }
+      return true;
+    });
     data.deploys.push(entry);
     this.save(data);
   }

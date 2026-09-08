@@ -428,6 +428,73 @@ export class GitHubClient {
       throw new Error(`GitHub update release ${response.status}: ${text.slice(0, 500)}`);
     }
   }
+
+  async listOpenMilestones(): Promise<
+    Array<{ id: number; number: number; title: string; due_on: string | null }>
+  > {
+    const { owner, repo } = this.repoPath();
+    const url = new URL(`https://api.github.com/repos/${owner}/${repo}/milestones`);
+    url.searchParams.set("state", "open");
+    url.searchParams.set("per_page", "50");
+    const response = await githubFetch(url, { headers: this.headers() });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub milestones ${response.status}: ${text.slice(0, 500)}`);
+    }
+    const items = (await response.json()) as Array<{
+      id: number;
+      number: number;
+      title: string;
+      due_on: string | null;
+    }>;
+    return items.map((item) => ({
+      id: item.id,
+      number: item.number,
+      title: item.title,
+      due_on: item.due_on,
+    }));
+  }
+
+  async listOpenIssuesForMilestone(milestoneNumber: number): Promise<GitHubIssue[]> {
+    const { owner, repo } = this.repoPath();
+    const url = new URL(`https://api.github.com/repos/${owner}/${repo}/issues`);
+    url.searchParams.set("state", "open");
+    url.searchParams.set("milestone", String(milestoneNumber));
+    url.searchParams.set("per_page", "50");
+    const response = await githubFetch(url, { headers: this.headers() });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub milestone issues ${response.status}: ${text.slice(0, 500)}`);
+    }
+    const items = (await response.json()) as GitHubIssueRaw[];
+    return items
+      .filter((item) => !item.pull_request)
+      .map((item) => ({
+        number: item.number,
+        title: item.title,
+        body: item.body,
+        html_url: item.html_url,
+        labels: labelNames(item.labels),
+      }));
+  }
+
+  /** True if git tag exists or a release (draft/published) uses this tag_name. */
+  async tagOrReleaseExists(tag: string): Promise<boolean> {
+    const { owner, repo } = this.repoPath();
+    const ref = await githubFetch(
+      `https://api.github.com/repos/${owner}/${repo}/git/ref/tags/${encodeURIComponent(tag)}`,
+      { headers: this.headers() },
+    );
+    if (ref.ok) {
+      return true;
+    }
+    if (ref.status !== 404) {
+      const text = await ref.text();
+      throw new Error(`GitHub tag ref ${ref.status}: ${text.slice(0, 500)}`);
+    }
+    const release = await this.findReleaseByTag(tag);
+    return release !== null;
+  }
 }
 
 export function jobComment(params: {

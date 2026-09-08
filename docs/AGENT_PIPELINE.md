@@ -105,6 +105,8 @@ Git — **только GitHub** (`origin`). Локальная Gitea не исп
 
 Деплой: поллинг published GitHub Releases (draft пропускаются). Режим `DEPLOY_MODE=stub` (заглушка) или `compose` (`docker compose -f docker-compose.yml up -d` в смонтированном корне репо). Статус дописывается в тело Release; на open issues с `ready-for-release` / `release-approved` — `deployed` или `deploy-failed`.
 
+**Schedule (P9):** оркестратор раз в `SCHEDULE_INTERVAL_MS` смотрит open milestones с `due_on` = сегодня. Нет tag → комментарий `blocked: no tag` (без compose). Есть tag и нет записи в `deploys.json` → очередь для deployer (один деплой на tag).
+
 Ollama: `host.docker.internal:11434` для приложения каталога, не для оркестратора.
 
 ## 6. UI оркестратора и логи

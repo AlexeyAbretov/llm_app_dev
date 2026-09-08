@@ -21,6 +21,12 @@ import {
   upsertChildBugIssuesInBody,
   upsertFixRoundInBody,
 } from "../dist/rules.js";
+import {
+  blockedNoTagComment,
+  bodyHasBlockedNoTagMarker,
+  isMilestoneDueOn,
+  tagFromMilestoneTitle,
+} from "../dist/schedule-rules.js";
 
 test("testerBugIssues parses issue numbers and removes duplicates", () => {
   assert.deepEqual(
@@ -197,4 +203,15 @@ test("child bug markers and open detection", () => {
   assert.equal(childBugStillOpen(["bug", "qa-passed"], "open"), false);
   assert.equal(childBugStillOpen(["bug", "in-qa"], "closed"), false);
   assert.equal(childBugStillOpen(["bug", "needs-human"], "open"), false);
+});
+
+test("milestone due and tag from title", () => {
+  assert.equal(isMilestoneDueOn("2026-09-08", new Date("2026-09-08T12:00:00Z")), true);
+  assert.equal(isMilestoneDueOn("2026-09-07", new Date("2026-09-08T12:00:00Z")), false);
+  assert.equal(isMilestoneDueOn(null), false);
+  assert.equal(tagFromMilestoneTitle("v0.3"), "v0.3");
+  assert.equal(tagFromMilestoneTitle("0.3.1"), "v0.3.1");
+  assert.equal(tagFromMilestoneTitle("Release party"), null);
+  assert.match(blockedNoTagComment("v0.3", 99), /blocked: no tag/);
+  assert.equal(bodyHasBlockedNoTagMarker(blockedNoTagComment("v0.3", 99), 99), true);
 });

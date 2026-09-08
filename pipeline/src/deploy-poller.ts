@@ -1,5 +1,6 @@
 import type { FastifyBaseLogger } from "fastify";
 import type { Config } from "./config.js";
+import { DeployRequestStore } from "./deploy-request-store.js";
 import {
   appendDeployNote,
   releaseBodyHasDeployMarker,
@@ -16,6 +17,7 @@ export function startDeployPoller(
   store: DeployStore,
 ): { stop: () => void } {
   const github = new GitHubClient(config);
+  const requests = new DeployRequestStore(config.DATA_DIR);
   let busy = false;
 
   const tick = (): void => {
@@ -24,7 +26,7 @@ export function startDeployPoller(
       return;
     }
     busy = true;
-    void pollOnce(config, logger, store, github).finally(() => {
+    void pollOnce(config, logger, store, requests, github).finally(() => {
       busy = false;
     });
   };
@@ -42,6 +44,7 @@ async function pollOnce(
   config: Config,
   logger: FastifyBaseLogger,
   store: DeployStore,
+  requests: DeployRequestStore,
   github: GitHubClient,
 ): Promise<void> {
   jobLog(logger, {}, "deploy poll tick");
@@ -50,6 +53,8 @@ async function pollOnce(
     jobLog(logger, {}, "deploy poll skip: GITHUB_TOKEN or GITHUB_REPO empty");
     return;
   }
+
+  await processScheduleRequests(config, logger, store, requests, github);
 
   let releases;
   try {
@@ -60,7 +65,8 @@ async function pollOnce(
   }
 
   const pending = releasesToDeploy(releases, store.deployedIds()).filter(
-    (release) => !releaseBodyHasDeployMarker(release.body, release.id),
+    (release) =>
+      !releaseBodyHasDeployMarker(release.body, release.id) && !store.hasTag(release.tag_name),
   );
 
   if (pending.length === 0) {
@@ -70,6 +76,69 @@ async function pollOnce(
 
   for (const release of pending) {
     await handleRelease(config, logger, store, github, release);
+  }
+}
+
+async function processScheduleRequests(
+  config: Config,
+  logger: FastifyBaseLogger,
+  store: DeployStore,
+  requests: DeployRequestStore,
+  github: GitHubClient,
+): Promise<void> {
+  for (const request of requests.pending()) {
+    const fields = { issue: request.milestoneId, role: "deployer", agentId: null, runId: null };
+    if (store.hasTag(request.tag)) {
+      requests.mark(request.tag, request.requestedAt, "skipped");
+      jobLog(logger, fields, `schedule request skip: ${request.tag} already deployed`);
+      continue;
+    }
+
+    const existing = await github.findReleaseByTag(request.tag);
+    if (existing && !existing.draft) {
+      // Prefer full release handle if published release exists.
+      const published = (await github.listPublishedReleases()).find((item) => item.id === existing.id);
+      if (published) {
+        await handleRelease(config, logger, store, github, published);
+        requests.mark(request.tag, request.requestedAt, "done");
+        continue;
+      }
+    }
+
+    jobLog(logger, fields, `schedule deploy start: ${request.tag}`);
+    const result = await runCatalogDeploy(config, request.tag);
+    const status = result.ok ? "deployed" : "deploy-failed";
+    store.record({
+      releaseId: existing?.id ?? 0,
+      tag: request.tag,
+      status,
+      mode: config.DEPLOY_MODE,
+      detail: `${result.detail}\n(source: schedule milestone ${request.milestoneTitle})`,
+      at: new Date().toISOString(),
+    });
+    if (existing) {
+      try {
+        const full = (await github.listPublishedReleases()).find((item) => item.id === existing.id);
+        const body = full?.body ?? null;
+        await github.updateReleaseBody(
+          existing.id,
+          appendDeployNote(body, existing.id, status, result.detail),
+        );
+      } catch (err) {
+        logger.error({ err, tag: request.tag }, "schedule release body update failed");
+      }
+    }
+    try {
+      await applyDeployLabels(github, status);
+    } catch (err) {
+      logger.error({ err, tag: request.tag }, "schedule deploy labels failed");
+    }
+    requests.mark(request.tag, request.requestedAt, "done");
+    jobLog(
+      logger,
+      fields,
+      result.ok ? `schedule deploy ok: ${request.tag}` : `schedule deploy failed: ${request.tag}`,
+    );
   }
 }
 
@@ -112,6 +181,11 @@ async function handleRelease(
   },
 ): Promise<void> {
   const fields = { issue: release.id, role: "deployer", agentId: null, runId: null };
+  if (store.hasTag(release.tag_name) || store.has(release.id)) {
+    jobLog(logger, fields, `deploy skip idempotent: ${release.tag_name}`);
+    return;
+  }
+
   jobLog(logger, fields, `deploy start: ${release.tag_name} (${release.html_url})`);
 
   const result = await runCatalogDeploy(config, release.tag_name);
