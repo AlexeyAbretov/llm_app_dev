@@ -18,7 +18,7 @@
 5. На `ready-for-dev` стартует разработчик (`in-dev`). После открытого PR `Fixes #N` — `in-qa` (не merge в `main`).
 6. На `in-qa` стартует тестировщик (ревью ветки PR). CI: workflow `.github/workflows/ci.yml`, job `ci`.
 
-Повторный полл ту же пару `(issue, analyst)` не запускает — состояние в volume `jobs.json`.
+Повторный полл ту же пару `(issue, role)` не запускает — состояние в volume `jobs.json`.
 
 ---
 
