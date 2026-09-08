@@ -109,8 +109,8 @@
 
 ### Проверка
 
-- [ ] `curl localhost:3001/api/health` → JSON с mongo/ollama статусами
-- [ ] Hot reload работает
+- [x] `curl localhost:3001/api/health` → JSON с mongo/ollama статусами
+- [x] Hot reload работает
 
 ---
 
