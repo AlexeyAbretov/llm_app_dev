@@ -1,13 +1,10 @@
 import { mkdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
-import { config } from './config.js';
+import { config, uploadDir } from './config.js';
 import { registerCors } from './plugins/cors.js';
 import { healthRoutes } from './routes/health.js';
-
-const uploadDir = resolve(process.cwd(), config.UPLOAD_DIR);
 
 async function buildApp() {
   const app = Fastify({ logger: true });
