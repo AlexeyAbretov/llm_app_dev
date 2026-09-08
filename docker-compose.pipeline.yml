@@ -47,5 +47,14 @@ services:
       - 1.1.1.1
     restart: unless-stopped
 
+  pipeline-ui:
+    build:
+      context: ./pipeline-ui
+    ports:
+      - "127.0.0.1:3010:80"
+    depends_on:
+      - orchestrator
+    restart: unless-stopped
+
 volumes:
   pipeline_data:

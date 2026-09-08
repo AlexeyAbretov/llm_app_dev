@@ -11,10 +11,11 @@ docker compose -f docker-compose.pipeline.yml up --build -d
 
 | Сервис | Порт | Назначение |
 |--------|------|------------|
-| `orchestrator` | `127.0.0.1:3020` | Поллинг issues → Cursor Cloud; **раз в час** milestone due (P9) |
+| `orchestrator` | `127.0.0.1:3020` | Поллинг issues → Cursor Cloud; schedule; API `/api/jobs` |
 | `deployer` | `127.0.0.1:3021` | Published Release + очередь `deploy-requests.json`; docker.sock |
+| `pipeline-ui` | `127.0.0.1:3010` | Таблица джоб и деплоев (прокси `/api` → orchestrator) |
 
-Health: `/health` на каждом порту.
+Health: `/health` на 3020/3021. UI: http://127.0.0.1:3010/
 
 ## Логи
 
@@ -28,7 +29,7 @@ docker compose -f docker-compose.pipeline.yml logs -f deployer
 ## Остановить полл
 
 ```powershell
-docker compose -f docker-compose.pipeline.yml stop orchestrator deployer
+docker compose -f docker-compose.pipeline.yml stop orchestrator deployer pipeline-ui
 # или полностью:
 docker compose -f docker-compose.pipeline.yml down
 ```

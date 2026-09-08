@@ -120,11 +120,11 @@ Ollama: `host.docker.internal:11434` для приложения каталог�
 | GitHub Actions / Release | CI, review, deploy job |
 | Deployer | `compose up`, health |
 
-UI (отдельный порт, например `3010`, не смешивать с каталогом):
+UI (отдельный порт **`127.0.0.1:3010`**, сервис `pipeline-ui`):
 
-1. Сначала GitHub (issues, Projects, Actions) — без своего UI.
-2. После рабочих джоб: таблица очереди, колонка «ожидает апрува», ссылки Issue / PR / агент Cursor, лог оркестратора из своей БД.
-3. Апрув релиза в UI не дублировать как единственный канал — источник правды GitHub.
+1. Таблица очереди из `GET /api/jobs` (volume `jobs.json`): issue, роль, статус, ссылки GitHub / Cursor.
+2. Колонка «ожидает апрува» для `release-manager` + `ready-for-release` — без кнопки апрува в UI.
+3. Деплои: `GET /api/deploys`. Полный транскрипт агента — в Cursor по `agentId`.
 
 Порт UI не публиковать в интернет без защиты.
 

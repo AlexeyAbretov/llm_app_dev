@@ -3,7 +3,7 @@
 Контракт (роли, labels): [AGENT_PIPELINE.md](./AGENT_PIPELINE.md).  
 Этапы разработки: [AGENT_PIPELINE_PLAN.md](./AGENT_PIPELINE_PLAN.md).
 
-Сейчас из коробки поднимаются **P0–P9**: оркестратор (в т.ч. hourly milestone due), роли Cloud, deployer, цикл QA. UI оркестратора — отдельный этап.
+Сейчас из коробки поднимаются **P0–P9 + UI**: оркестратор, deployer, очередь на `http://127.0.0.1:3010/`.
 
 Каталог объектов (Ollama, MongoDB) **не нужен**, чтобы запустить оркестратор.
 
@@ -149,11 +149,13 @@ docker compose -f docker-compose.pipeline.yml up --build -d
 ```powershell
 Invoke-RestMethod http://127.0.0.1:3020/health
 Invoke-RestMethod http://127.0.0.1:3021/health
+# UI очереди (только localhost)
+Start-Process http://127.0.0.1:3010/
 docker compose -f docker-compose.pipeline.yml logs -f orchestrator
 docker compose -f docker-compose.pipeline.yml logs -f deployer
 ```
 
-Ожидаемые логи орка без issue: `poll tick`, `schedule tick`. Deployer: `deploy poll tick`, без `GITHUB_TOKEN or GITHUB_REPO empty`.
+Ожидаемые логи орка без issue: `poll tick`, `schedule tick`. Deployer: `deploy poll tick`, без `GITHUB_TOKEN or GITHUB_REPO empty`. API для UI: `http://127.0.0.1:3020/api/jobs` (через UI проксируется с :3010).
 
 Для быстрой проверки schedule без часа ожидания временно в `pipeline/.env`: `SCHEDULE_INTERVAL_MS=60000`, затем `--force-recreate`.
 
@@ -250,11 +252,10 @@ docker compose -f docker-compose.pipeline.yml up -d
 
 ## 10. Что ещё не запускается
 
-- UI оркестратора (`pipeline/ui-jobs`).
 - Автоmerge / авто-Publish после `release-approved`.
 - Полноценный checkout tag + app-контейнер каталога (сейчас stub или только mongo compose).
 - Каталог: Ollama на хосте — [MVP_PLAN.md](./MVP_PLAN.md).
 
-Кратко про логи и stop: [pipeline/README.md](../pipeline/README.md).
+Кратко про логи и stop: [pipeline/README.md](../pipeline/README.md). UI: `http://127.0.0.1:3010/`.
 
 Промпты ролей: `pipeline/prompts/`.

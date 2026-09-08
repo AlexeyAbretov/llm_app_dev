@@ -521,6 +521,10 @@ async function handleIssue(
     }
   }
 
+  if (decision) {
+    store.update(job.id, { decision });
+  }
+
   try {
     await github.commentOnIssue(
       issue.number,

@@ -48,6 +48,7 @@ export class JobStore {
       agentId: null,
       runId: null,
       error: null,
+      decision: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -76,7 +77,7 @@ export class JobStore {
 
   update(
     id: string,
-    patch: Partial<Pick<Job, "status" | "agentId" | "runId" | "error">>,
+    patch: Partial<Pick<Job, "status" | "agentId" | "runId" | "error" | "decision">>,
   ): Job | undefined {
     const data = this.load();
     const job = data.jobs.find((item) => item.id === id);
@@ -84,9 +85,27 @@ export class JobStore {
       return undefined;
     }
     Object.assign(job, patch);
+    if (job.decision === undefined) {
+      job.decision = null;
+    }
     job.updatedAt = new Date().toISOString();
     this.save(data);
     return job;
+  }
+
+  list(): Job[] {
+    return this.load().jobs.map((job) => ({
+      ...job,
+      decision: job.decision ?? null,
+    }));
+  }
+
+  snapshot(): { lastPollAt: string | null; jobs: Job[] } {
+    const data = this.load();
+    return {
+      lastPollAt: data.lastPollAt,
+      jobs: data.jobs.map((job) => ({ ...job, decision: job.decision ?? null })),
+    };
   }
 
   setLastPollAt(iso: string): void {

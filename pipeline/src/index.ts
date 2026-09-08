@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { registerApiRoutes } from "./api.js";
 import { loadConfig } from "./config.js";
 import { JobStore } from "./jobs.js";
 import { startPoller } from "./poller.js";
@@ -18,6 +19,8 @@ app.get("/health", async () => ({
   service: "orchestrator",
   scheduleIntervalMs: config.SCHEDULE_INTERVAL_MS,
 }));
+
+registerApiRoutes(app, config, store);
 
 const poller = startPoller(config, app.log, store);
 const schedule = startSchedulePoller(config, app.log);

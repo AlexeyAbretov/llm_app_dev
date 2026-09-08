@@ -27,6 +27,7 @@ import {
   isMilestoneDueOn,
   tagFromMilestoneTitle,
 } from "../dist/schedule-rules.js";
+import { uiStatusForJob } from "../dist/types.js";
 
 test("testerBugIssues parses issue numbers and removes duplicates", () => {
   assert.deepEqual(
@@ -214,4 +215,22 @@ test("milestone due and tag from title", () => {
   assert.equal(tagFromMilestoneTitle("Release party"), null);
   assert.match(blockedNoTagComment("v0.3", 99), /blocked: no tag/);
   assert.equal(bodyHasBlockedNoTagMarker(blockedNoTagComment("v0.3", 99), 99), true);
+});
+
+test("uiStatusForJob maps release-manager approval and failures", () => {
+  assert.equal(uiStatusForJob({ status: "queued", decision: null, role: "analyst" }), "queued");
+  assert.equal(uiStatusForJob({ status: "running", decision: null, role: "developer" }), "running");
+  assert.equal(
+    uiStatusForJob({
+      status: "finished",
+      decision: "ready-for-release",
+      role: "release-manager",
+    }),
+    "waiting-approval",
+  );
+  assert.equal(
+    uiStatusForJob({ status: "finished", decision: "needs-human", role: "tester" }),
+    "failed",
+  );
+  assert.equal(uiStatusForJob({ status: "error", decision: null, role: "analyst" }), "failed");
 });

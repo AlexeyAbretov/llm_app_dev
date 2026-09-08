@@ -264,21 +264,21 @@ Issue → план → PR → проверка → draft release → апрув 
 
 ## UI: очередь джоб и логи
 
-**Ветка:** `pipeline/ui-jobs`  
+**Ветка:** `pipeline/ui-jobs`
 **После:** P2 (нужны записи джоб). Можно параллельно с P3+.
 
 ### Шаги
 
-1. Отдельный сервис `pipeline-ui` (React + Vite + TS + Tailwind), порт ≠ каталог.
-2. Таблица: issue, роль, статус (`queued` / `running` / `waiting-approval` / `failed`), ссылки GitHub и Cursor.
-3. Лог оркестратора из БД джоб, не сырой `docker logs` как единственный источник.
-4. Превью `conversation()` Cursor — опционально по клику; полный транскрипт в Cursor.
-5. Апрув релиза не заменяет GitHub (только отображение `waiting-approval`).
+1. Сервис `pipeline-ui` (React + Vite + TS + Tailwind), порт `127.0.0.1:3010`.
+2. API оркестратора: `GET /api/jobs`, `GET /api/deploys` (данные из volume, не docker logs).
+3. Таблица: issue, роль, UI-статус (`queued` / `running` / `waiting-approval` / `failed` / `finished`), ссылки GitHub и Cursor.
+4. Полный транскрипт — ссылка на Cursor (`agentId`); апрув релиза только в GitHub.
+5. Compose: `pipeline-ui` + nginx proxy `/api` → orchestrator.
 
 ### Проверка
 
-- [ ] Джоб с P2 виден в таблице со ссылками
-- [ ] UI не торчит наружу без необходимости
+- [ ] Джоб из `jobs.json` виден в таблице со ссылками
+- [ ] UI слушает только `127.0.0.1:3010`
 
 ---
 
