@@ -48,7 +48,7 @@ npm run test:catalog-repo -w @llm-app/backend   # проверка CatalogReposi
 npm run test:ollama -w @llm-app/backend         # Ollama vision/embed + parser (нужен ollama serve; test.jpg для E2E)
 npm run test:pipeline -w @llm-app/backend       # LangGraph pipeline (нужен MongoDB; для happy path — Ollama + test.jpg)
 npm run test:api -w @llm-app/backend            # REST API items/search (inject + моки, без MongoDB)
-npm run dev:frontend             # только frontend (заглушка до этапа 6)
+npm run dev:frontend             # только frontend (Vite :5173, proxy /api → :3001)
 docker compose -f docker-compose.pipeline.yml up --build -d   # оркестратор + deployer, см. docs/AGENT_PIPELINE_SETUP.md
 ```
 
