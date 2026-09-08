@@ -59,14 +59,15 @@ export function mergeHybridScores(
   semantic: Map<string, number>,
   keyword: Map<string, number>,
 ): Map<string, number> {
-  const semanticNorm = normalizeScores(semantic);
+  // Cosine уже 0..1. Min-max по 4 близким значениям (0.68 vs 0.71)
+  // превращает шум в «70% vs 21%» и ставит дом последним.
   const keywordNorm = normalizeScores(keyword);
-  const ids = new Set([...semanticNorm.keys(), ...keywordNorm.keys()]);
+  const ids = new Set([...semantic.keys(), ...keywordNorm.keys()]);
   const combined = new Map<string, number>();
 
   for (const id of ids) {
     const score =
-      SEMANTIC_WEIGHT * (semanticNorm.get(id) ?? 0) +
+      SEMANTIC_WEIGHT * (semantic.get(id) ?? 0) +
       KEYWORD_WEIGHT * (keywordNorm.get(id) ?? 0);
     combined.set(id, score);
   }
@@ -76,19 +77,39 @@ export function mergeHybridScores(
 
 export interface HybridSearchDeps {
   repository: CatalogRepository;
-  embedQuery: (query: string) => Promise<number[]>;
+  embedQuery: (englishQuery: string) => Promise<number[]>;
+  translateQuery?: (query: string) => Promise<string>;
   limit: number;
+}
+
+function mergeKeywordHits(
+  ...lists: Array<Array<{ id: string; textScore: number }>>
+): Map<string, number> {
+  const keywordScores = new Map<string, number>();
+  for (const hits of lists) {
+    for (const hit of hits) {
+      const prev = keywordScores.get(hit.id) ?? 0;
+      keywordScores.set(hit.id, Math.max(prev, hit.textScore));
+    }
+  }
+  return keywordScores;
 }
 
 export async function hybridSearch(
   query: string,
   deps: HybridSearchDeps,
 ): Promise<Array<{ item: CatalogItem; score: number }>> {
-  const queryEmbedding = await deps.embedQuery(query);
+  const english = deps.translateQuery ? await deps.translateQuery(query) : query;
 
-  const [itemsWithEmbeddings, textHits] = await Promise.all([
+  const textQueries = [query];
+  if (english.trim().toLowerCase() !== query.trim().toLowerCase()) {
+    textQueries.push(english);
+  }
+
+  const [itemsWithEmbeddings, queryEmbedding, ...textHitLists] = await Promise.all([
     deps.repository.findAllWithEmbeddings(),
-    deps.repository.textSearch(query),
+    deps.embedQuery(english),
+    ...textQueries.map((q) => deps.repository.textSearch(q)),
   ]);
 
   const itemsById = new Map(itemsWithEmbeddings.map((item) => [item._id, item]));
@@ -98,10 +119,7 @@ export async function hybridSearch(
     semanticScores.set(item._id, cosineSimilarity(queryEmbedding, item.embedding));
   }
 
-  const keywordScores = new Map<string, number>();
-  for (const hit of textHits) {
-    keywordScores.set(hit.id, hit.textScore);
-  }
+  const keywordScores = mergeKeywordHits(...textHitLists);
 
   const combined = mergeHybridScores(semanticScores, keywordScores);
 

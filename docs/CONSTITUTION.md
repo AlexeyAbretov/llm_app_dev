@@ -1,6 +1,6 @@
 # Конституция проекта: Каталог объектов
 
-> Версия: 1.4 · Дата: 2026-09-07
+> Версия: 1.5 · Дата: 2026-09-08
 
 ## 1. Миссия
 
@@ -12,11 +12,11 @@
 |---|-----------|-----------|
 | P1 | **Локальность продукта** | Каталог, фото, MongoDB, Ollama и GPU работают на машине разработчика. Нет облачных LLM API для продукта. |
 | P1a | **Процесс разработки** | GitHub и Cursor Cloud допустимы для issues/PR и агентов пайплайна. Код клонируется на VM Cursor. Runtime каталога и деплой остаются локальными. См. [AGENT_PIPELINE.md](./AGENT_PIPELINE.md). |
-| P2 | **Русский язык** | UI, промпты LLM, генерируемый контент — только русский. |
+| P2 | **Русский язык** | UI, карточки (`title`, `description`, `tags`) и промпты vision — русский. Исключение: скрытое `embedText` и перевод поискового запроса — английский (nomic); в API и UI не отдаём. |
 | P3 | **JavaScript end-to-end** | Backend и orchestration на Node.js. Python не используем. |
 | P4 | **Простота MVP** | Сначала работающий happy path. Фичи вне scope MVP — в backlog, не в код. |
 | P5 | **Async-by-default** | Vision LLM медленная (~10–30 с). Обработка асинхронная, UI показывает статус. |
-| P6 | **Один GPU, последовательно** | RTX 4060 8 GB — vision и embedding не запускаем параллельно. |
+| P6 | **Один GPU, последовательно** | RTX 4060 8 GB — vision и перевод запроса не параллелить (mutex). |
 | P7 | **Типобезопасность** | TypeScript на фронте. Общие типы в `shared/`. Backend — TypeScript или JSDoc + Zod. |
 | P8 | **Минимальный diff** | Каждый PR/шаг решает одну задачу. Без over-engineering. |
 | P9 | **Ветка на этап** | Каталог — `stage/N-…`, пайплайн — `pipeline/N-…`. Merge в `main` только после явного подтверждения пользователя. |
@@ -140,6 +140,7 @@ Merge в `main` допустим когда:
 │  AI:        Ollama (localhost:11434)            │
 │             Vision:  qwen2.5vl:7b               │
 │             Embed:   nomic-embed-text             │
+│             Translate: qwen2.5:0.5b (поиск)     │
 ├─────────────────────────────────────────────────┤
 │  DB:        MongoDB 7 (local, порт 27017)       │
 │  Files:     GridFS или uploads/ на диске        │
@@ -150,7 +151,7 @@ Merge в `main` допустим когда:
 
 - **GPU:** NVIDIA RTX 4060 Laptop, 8 GB VRAM
 - **Модели:** только 7B-класс в квантизации (Q4/Q5)
-- **Очередь:** одна vision-задача за раз (mutex/semaphore)
+- **Очередь:** одна GPU-задача chat (vision / translate) за раз (mutex)
 
 ### 5.1 Обоснование выбора технологий
 
@@ -183,7 +184,8 @@ Merge в `main` допустим когда:
 |------------|---------------|---------------------------|
 | **Ollama** | Простейший запуск локальных LLM; REST API из Node; управление моделями (`pull`); GPU из коробки на Windows | LM Studio — нет headless API для automation; llama.cpp напрямую — больше низкоуровневой работы; OpenAI/Claude API — нарушает принцип локальности (P1) |
 | **qwen2.5vl:7b** | Multimodal (vision) в библиотеке Ollama; наследник снятого `qwen2-vl:7b`; русский; 7B в Q4 на 8 GB VRAM; нужен Ollama ≥ 0.7.0 | llava:7b — слабее с русским; llama3.2-vision:11b — впритык по VRAM; GPT-4V API — облако; модели 13B+ — OOM на RTX 4060 Laptop |
-| **nomic-embed-text** | 768 dims, быстрая (~1 с), доступна в Ollama; одна инфраструктура (Ollama) для vision и embed | sentence-transformers — отдельный Python runtime; OpenAI embeddings — облако; CLIP embeddings — другой semantic space, хуже для text search |
+| **nomic-embed-text** | 768 dims, быстрая (~1 с), доступна в Ollama; префиксы `search_document:` / `search_query:`; эмбеддим английский `embedText`, не русские карточки | sentence-transformers — отдельный Python runtime; OpenAI embeddings — облако; CLIP embeddings — другой semantic space, хуже для text search |
+| **qwen2.5:0.5b** | Перевод поискового запроса RU→EN (~0.5B, мало VRAM). Не 7B vision на каждый поиск | Перевод 7B vision — слишком дорого; без перевода nomic плохо матчит русский запрос с английским `embedText` |
 | **Ollama на хосте (не Docker)** | Docker на Windows не пробрасывает GPU в контейнер без WSL2 + NVIDIA toolkit; Ollama natively видит RTX 4060 | Ollama in Docker — сложная GPU-настройка; CPU-only — vision 2–5 мин вместо 10–30 с |
 
 #### Хранение данных
@@ -232,8 +234,8 @@ User → POST /api/items (multipart)
      → save file + create doc (status: pending)
      → enqueue LangGraph job (status: processing)
          → validate image
-         → Ollama vision → { title, description, tags }
-         → Ollama embed  → float[]
+         → Ollama vision → { title, description, tags, embedText }
+         → Ollama embed(embedText) → float[]
          → update doc (status: ready)
      ← 202 Accepted { id, status }
 
@@ -245,10 +247,12 @@ User → GET /api/items/:id (polling пока processing)
 
 ```
 User → GET /api/search?q=красная ваза
-     → embed query (Ollama nomic-embed-text)
-     → cosine similarity vs catalog embeddings
-     → merge с $text score (hybrid, вес 0.7/0.3)
-     ← [{ item, score }, ...]
+     → translate q RU→EN (qwen2.5:0.5b; английский запрос не трогаем)
+     → embed English query (nomic search_query:)
+     → cosine similarity vs catalog embeddings (без min-max по cosine)
+     → $text по исходному RU и по English; merge keyword (max score)
+     → hybrid: 0.7 * cosine + 0.3 * min-max($text)
+     ← [{ item, score }, ...]   // item без embedding и embedText
 ```
 
 ### 6.4 LangGraph pipeline (узлы)
@@ -257,9 +261,9 @@ User → GET /api/search?q=красная ваза
 |------|------|-------|-------|
 | `validate` | file buffer | ok / error | — |
 | `saveImage` | buffer | imagePath, imageId | — |
-| `visionLLM` | imagePath | title, description, tags | 2× |
+| `visionLLM` | imagePath | title, description, tags, embedText | 2× |
 | `parseResponse` | raw LLM text | validated JSON | 1× |
-| `embed` | title+desc+tags | float[] | 2× |
+| `embed` | embedText (EN) | float[] | 2× |
 | `saveDB` | all fields | mongoId | — |
 
 ### 6.5 MongoDB: коллекция `catalog_items`
@@ -267,9 +271,10 @@ User → GET /api/search?q=красная ваза
 ```typescript
 interface CatalogItem {
   _id: ObjectId;
-  title: string;
-  description: string;
-  tags: string[];
+  title: string;          // RU, для UI
+  description: string;    // RU, для UI
+  tags: string[];         // RU, для UI
+  embedText: string;      // EN, скрыто; nomic + $text; в API не отдаём
   image: {
     storage: 'gridfs' | 'disk';
     ref: string;          // GridFS id или относительный path
@@ -290,7 +295,7 @@ interface CatalogItem {
 ```
 
 **Индексы:**
-- `{ title: 'text', description: 'text', tags: 'text' }`
+- `{ title: 'text', description: 'text', tags: 'text', embedText: 'text' }` (`default_language: 'none'`)
 - `{ status: 1, createdAt: -1 }`
 - `{ createdAt: -1 }`
 
@@ -304,28 +309,35 @@ interface CatalogItem {
 | `GET` | `/api/search` | Поиск (`?q=...&limit=20`) |
 | `GET` | `/api/health` | Healthcheck (mongo + ollama) |
 
-## 8. Промпт vision LLM (v1)
+## 8. Промпт vision LLM (v5)
 
 ```
-Ты — помощник для каталога объектов. Посмотри на изображение и верни JSON:
+Ты заполняешь карточку объекта в каталоге. На входе картинка. Описывай ОБЪЕКТ (вещь, существо, растение, место), не кадр.
 
+Верни только JSON:
 {
-  "title": "краткий заголовок до 80 символов",
-  "description": "описание объекта в 2–4 предложениях",
-  "tags": ["тег1", "тег2", "тег3"]
+  "title": "русский заголовок до 80 символов",
+  "description": "2–4 предложения по-русски про объект",
+  "tags": ["тег1", "тег2", "тег3"],
+  "embedText": "English search text: class, type, distinctive features"
 }
 
-Правила:
-- Язык: только русский
-- title — конкретный, без «изображение» / «фото»
-- tags — 3–7 существительных в нижнем регистре
-- Ответ: только JSON, без markdown
+title, description, tags — только русский. Факты об объекте: тип, цвет, материал, форма. Не описывай съёмку.
+embedText — только английский, для поиска. Класс (animal, person, building, plant, vessel, clothing) + конкретный тип (house, macaque, …) + признаки. Без photo/image/close-up.
+
+Запрещено везде: изображение, фото, фотография, снимок, кадр, крупный план, photo, photograph, image, close-up.
+
+Плохо: "Изображение обезьяны. Фотография сделана в крупном плане."
+Хорошо: {"title":"Макака с красными губами","description":"Макака с ярко-красными губами и янтарными глазами. Шерсть серо-коричневая, морда вытянута вперёд.","tags":["макака","обезьяна","животные","губы"],"embedText":"macaque monkey animal bright red lips amber eyes grey-brown fur"}
+
+tags: 3–7 существительных в нижнем регистре.
+Ответ: только JSON, без markdown.
 ```
 
 ## 9. Критерии готовности MVP
 
 - [ ] `docker compose up` поднимает MongoDB
-- [ ] Ollama с `qwen2.5vl:7b` и `nomic-embed-text` отвечает на `/api/health`
+- [ ] Ollama с `qwen2.5vl:7b`, `nomic-embed-text` и `qwen2.5:0.5b` отвечает на `/api/health` (health проверяет Ollama; translate — для поиска)
 - [ ] Upload фото → через ≤60 с объект в статусе `ready` с осмысленным title/description
 - [ ] Каталог показывает все `ready` объекты
 - [ ] Поиск «ваза» находит загруженную вазу в top-5

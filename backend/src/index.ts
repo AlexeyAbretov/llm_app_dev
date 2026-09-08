@@ -9,7 +9,8 @@ import { registerMongo } from './plugins/mongo.js';
 import { healthRoutes } from './routes/health.js';
 import { itemsRoutes } from './routes/items.js';
 import { searchRoutes } from './routes/search.js';
-import { generateEmbedding } from './services/ollama.js';
+import { generateEmbedding, translateSearchQuery } from './services/ollama.js';
+import { nomicEmbedInput } from './services/nomic.js';
 
 async function buildApp() {
   const app = Fastify({ logger: true });
@@ -24,7 +25,10 @@ async function buildApp() {
       log: app.log,
     }),
   );
-  app.decorate('embedQuery', generateEmbedding);
+  app.decorate('embedQuery', (englishQuery: string) =>
+    generateEmbedding(nomicEmbedInput(englishQuery, 'query')),
+  );
+  app.decorate('translateQuery', translateSearchQuery);
 
   await app.register(multipart, {
     limits: {

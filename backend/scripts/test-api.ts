@@ -8,12 +8,15 @@ import type { CatalogItem } from '@llm-app/shared';
 import { itemsRoutes } from '../src/routes/items.js';
 import { searchRoutes } from '../src/routes/search.js';
 import { CatalogRepository } from '../src/repositories/catalogRepository.js';
+import { nomicEmbedInput } from '../src/services/nomic.js';
+import { mergeHybridScores } from '../src/services/search.js';
 
 const sampleItem: CatalogItem = {
   _id: '507f1f77bcf86cd799439011',
   title: 'Тестовая ваза',
   description: 'Описание',
   tags: ['ваза'],
+  embedText: 'ceramic vase decorative vessel',
   image: {
     storage: 'disk',
     ref: 'abc.jpg',
@@ -25,7 +28,7 @@ const sampleItem: CatalogItem = {
   llm: {
     visionModel: 'qwen2.5vl:7b',
     embedModel: 'nomic-embed-text',
-    promptVersion: 'v1',
+    promptVersion: 'v5',
   },
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
@@ -50,6 +53,7 @@ async function buildTestApp() {
       title: '',
       description: '',
       tags: [],
+      embedText: '',
       embedding: [],
       image: {
         storage: 'disk' as const,
@@ -65,11 +69,16 @@ async function buildTestApp() {
     }),
     findAllWithEmbeddings: async () => [sampleItem],
     textSearch: async (q: string) =>
-      q.includes('ваза') ? [{ id: sampleItem._id, textScore: 1.5 }] : [],
+      q.includes('ваза') || q.toLowerCase().includes('vase')
+        ? [{ id: sampleItem._id, textScore: 1.5 }]
+        : [],
   } as unknown as CatalogRepository;
 
   app.decorate('catalogRepository', mockRepo);
   app.decorate('embedQuery', async () => sampleItem.embedding);
+  app.decorate('translateQuery', async (query: string) =>
+    /[а-яё]/i.test(query) ? 'vase' : query,
+  );
   app.decorate('pipelineRunner', {
     enqueue(input: { itemId: string }) {
       enqueued.push(input);
@@ -85,7 +94,34 @@ async function buildTestApp() {
   return { app, enqueued };
 }
 
+function assertNomicPrefixes(): void {
+  if (nomicEmbedInput('дом', 'query') !== 'search_query: дом') {
+    throw new Error('nomicEmbedInput query');
+  }
+  if (!nomicEmbedInput('Кирпичный дом', 'document').startsWith('search_document: ')) {
+    throw new Error('nomicEmbedInput document');
+  }
+
+  const merged = mergeHybridScores(
+    new Map([
+      ['man', 0.71],
+      ['house', 0.69],
+    ]),
+    new Map(),
+  );
+  const man = merged.get('man') ?? 0;
+  const house = merged.get('house') ?? 0;
+  if (house < 0.4 || man - house > 0.05) {
+    throw new Error(
+      `min-max не должен раздувать 0.71 vs 0.69: man=${man} house=${house}`,
+    );
+  }
+  console.log('nomic prefixes ok');
+}
+
 async function main(): Promise<void> {
+  assertNomicPrefixes();
+
   const { app, enqueued } = await buildTestApp();
 
   const jpeg = minimalJpeg();
@@ -130,8 +166,8 @@ async function main(): Promise<void> {
   }
 
   const itemJson = JSON.parse(getById.body) as Record<string, unknown>;
-  if ('embedding' in itemJson) {
-    throw new Error('GET /api/items/:id: embedding не должен быть в ответе');
+  if ('embedding' in itemJson || 'embedText' in itemJson) {
+    throw new Error('GET /api/items/:id: embedding/embedText не должны быть в ответе');
   }
   if (itemJson.imageUrl !== '/uploads/abc.jpg') {
     throw new Error(`GET /api/items/:id: imageUrl=${String(itemJson.imageUrl)}`);
@@ -163,6 +199,10 @@ async function main(): Promise<void> {
   if (!listJson.meta || listJson.meta.page !== 1 || listJson.meta.totalPages !== 1) {
     throw new Error(`GET /api/items: meta=${JSON.stringify(listJson.meta)}`);
   }
+  const listItem = listJson.items[0] as Record<string, unknown> | undefined;
+  if (listItem && ('embedText' in listItem || 'embedding' in listItem)) {
+    throw new Error('GET /api/items: embedding/embedText не должны быть в ответе');
+  }
   console.log('GET /api/items → pagination meta ok');
 
   const search = await app.inject({
@@ -174,7 +214,7 @@ async function main(): Promise<void> {
   }
   const searchJson = JSON.parse(search.body) as {
     query: string;
-    results: Array<{ item: { _id: string; title: string }; score: number }>;
+    results: Array<{ item: Record<string, unknown> & { _id: string }; score: number }>;
   };
   if (searchJson.query !== 'ваза' || searchJson.results.length !== 1) {
     throw new Error(`GET /api/search: ${search.body}`);
@@ -184,6 +224,9 @@ async function main(): Promise<void> {
   }
   if (searchJson.results[0]!.score <= 0) {
     throw new Error(`GET /api/search: score=${searchJson.results[0]!.score}`);
+  }
+  if ('embedText' in searchJson.results[0]!.item || 'embedding' in searchJson.results[0]!.item) {
+    throw new Error('GET /api/search: embedding/embedText не должны быть в ответе');
   }
   console.log('GET /api/search → hybrid ok, score=', searchJson.results[0]!.score);
 

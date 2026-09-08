@@ -10,7 +10,8 @@
     "test:catalog-repo": "tsx scripts/test-catalog-repo.ts",
     "test:ollama": "tsx scripts/test-ollama.ts",
     "test:pipeline": "tsx scripts/test-pipeline.ts",
-    "test:api": "tsx scripts/test-api.ts"
+    "test:api": "tsx scripts/test-api.ts",
+    "reembed-catalog": "tsx scripts/reembed-catalog.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",

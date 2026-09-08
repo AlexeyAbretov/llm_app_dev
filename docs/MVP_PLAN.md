@@ -67,6 +67,7 @@
    OLLAMA_BASE_URL=http://localhost:11434
    OLLAMA_VISION_MODEL=qwen2.5vl:7b
    OLLAMA_EMBED_MODEL=nomic-embed-text
+   OLLAMA_TRANSLATE_MODEL=qwen2.5:0.5b
    UPLOAD_DIR=./uploads
    PORT=3001
    ```
@@ -76,6 +77,7 @@
    ```bash
    ollama pull qwen2.5vl:7b
    ollama pull nomic-embed-text
+   ollama pull qwen2.5:0.5b
    ```
 
 ### Проверка
@@ -322,12 +324,13 @@
 ### Шаги
 
 1. Backend `services/search.ts`:
-   - `embedQuery(q)` → Ollama embedding
-   - `cosineSimilarity(a, b)` → score 0..1
+   - перевод запроса RU→EN (`qwen2.5:0.5b`), затем `embedQuery` с префиксом `search_query:`
+   - `cosineSimilarity(a, b)` → 0..1, **без** min-max по cosine
    - load all `ready` items with embeddings
-   - `$textSearch(q)` → text score
-   - hybrid merge: `0.7 * semantic + 0.3 * keyword` (normalize scores)
+   - `$text` по исходному RU и по English (`embedText` в индексе)
+   - hybrid merge: `0.7 * cosine + 0.3 * min-max($text)`
    - sort by combined score, return top N
+   Карточки: RU `title`/`description`/`tags`; скрытый EN `embedText` для nomic.
 2. `GET /api/search?q=...&limit=20` — реализация
 3. Frontend `SearchPage`:
    - input + debounce 300ms

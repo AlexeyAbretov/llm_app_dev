@@ -30,6 +30,7 @@ function createInitialState(input: PipelineInput): PipelineGraphState {
     title: undefined,
     description: undefined,
     tags: undefined,
+    embedText: undefined,
     embedding: undefined,
     rawVision: undefined,
     savedImage: undefined,

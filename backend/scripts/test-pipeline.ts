@@ -88,6 +88,7 @@ async function testRetryWithMock(repo: CatalogRepository): Promise<void> {
     title: 'Тестовая ваза',
     description: 'Керамическая ваза для проверки retry.',
     tags: ['ваза', 'керамика', 'тест'],
+    embedText: 'ceramic vase decorative vessel test object',
   });
 
   const created = await repo.create({
@@ -181,7 +182,13 @@ async function testHappyPathE2E(
   }
 
   const item = await repo.findById(created._id);
-  if (!item?.title || !item.description || !item.tags.length || !item.embedding.length) {
+  if (
+    !item?.title ||
+    !item.description ||
+    !item.tags.length ||
+    !item.embedText ||
+    !item.embedding.length
+  ) {
     throw new Error('E2E: не все поля заполнены');
   }
 
@@ -195,12 +202,12 @@ async function testParserReference(): Promise<void> {
   logSection('Parser sanity (markdown JSON)');
 
   const parsed = parseVisionResponse(`\`\`\`json
-{"title":"V","description":"D","tags":["a","b","c"]}
+{"title":"V","description":"D","tags":["a","b","c"],"embedText":"test object english"}
 \`\`\``);
-  console.log('parseVisionResponse ok:', parsed.title);
+  console.log('parseVisionResponse ok:', parsed.title, parsed.embedText);
 
   const spaced = parseVisionResponse(
-    '{"title":"V","description":"D","tags":["Красные губы","Обезьяна","портрет"]}',
+    '{"title":"V","description":"D","tags":["Красные губы","Обезьяна","портрет"],"embedText":"macaque monkey red lips"}',
   );
   if (spaced.tags.join(',') !== 'красные-губы,обезьяна,портрет') {
     throw new Error(`normalize tags: ${spaced.tags.join(',')}`);

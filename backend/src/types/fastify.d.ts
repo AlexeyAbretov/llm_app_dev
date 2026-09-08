@@ -10,6 +10,7 @@ declare module 'fastify' {
     };
     catalogRepository: CatalogRepository;
     pipelineRunner: PipelineRunner;
-    embedQuery: (text: string) => Promise<number[]>;
+    embedQuery: (englishQuery: string) => Promise<number[]>;
+    translateQuery: (query: string) => Promise<string>;
   }
 }

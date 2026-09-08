@@ -7,6 +7,7 @@ export const visionResponseSchema = z.object({
     .array(z.string().regex(/^[a-zа-яё0-9-]+$/u, 'тег в нижнем регистре'))
     .min(3)
     .max(7),
+  embedText: z.string().min(8).max(600),
 });
 
 export type VisionParseResult = z.infer<typeof visionResponseSchema>;
@@ -53,11 +54,15 @@ function normalizeTags(parsed: unknown): unknown {
 
 function parseAndValidate(jsonText: string): VisionParseResult {
   const parsed: unknown = JSON.parse(jsonText);
-  return visionResponseSchema.parse(normalizeTags(parsed));
+  const result = visionResponseSchema.parse(normalizeTags(parsed));
+  return {
+    ...result,
+    embedText: result.embedText.trim().replace(/\s+/g, ' '),
+  };
 }
 
 /**
- * Разбирает сырой текст vision LLM в { title, description, tags }.
+ * Разбирает сырой текст vision LLM в { title, description, tags, embedText }.
  * Поддерживает markdown-обёртку и regex-fallback.
  */
 export function parseVisionResponse(raw: string): VisionParseResult {

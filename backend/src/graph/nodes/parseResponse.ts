@@ -20,6 +20,7 @@ export function createParseResponseNode(deps: PipelineDeps) {
         title: parsed.title,
         description: parsed.description,
         tags: parsed.tags,
+        embedText: parsed.embedText,
         error: undefined,
         failedStep: undefined,
       };

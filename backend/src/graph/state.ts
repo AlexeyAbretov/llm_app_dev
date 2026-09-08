@@ -11,6 +11,7 @@ export interface PipelineState {
   title?: string;
   description?: string;
   tags?: string[];
+  embedText?: string;
   embedding?: number[];
   rawVision?: string;
   savedImage?: SavedImage;
@@ -32,6 +33,7 @@ export const PipelineStateAnnotation = Annotation.Root({
   title: Annotation<string | undefined>,
   description: Annotation<string | undefined>,
   tags: Annotation<string[] | undefined>,
+  embedText: Annotation<string | undefined>,
   embedding: Annotation<number[] | undefined>,
   rawVision: Annotation<string | undefined>,
   savedImage: Annotation<SavedImage | undefined>,

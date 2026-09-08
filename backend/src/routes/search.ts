@@ -39,6 +39,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
         const hits = await hybridSearch(q, {
           repository: app.catalogRepository,
           embedQuery: app.embedQuery,
+          translateQuery: app.translateQuery,
           limit,
         });
 
@@ -54,7 +55,11 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
       } catch (error) {
         request.log.error(error);
         const message = error instanceof Error ? error.message : String(error);
-        if (message.includes('Ollama') || message.includes('embed')) {
+        if (
+          message.includes('Ollama') ||
+          message.includes('embed') ||
+          message.includes('translate')
+        ) {
           return sendError(reply, 503, 'Сервис embeddings недоступен');
         }
         return sendError(reply, 500, 'Ошибка поиска');

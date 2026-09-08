@@ -7,6 +7,7 @@ import {
   type CreateCatalogItemData,
   type UpdateCatalogItemData,
 } from '../models/catalogItem.js';
+import { PROMPT_VERSION } from '../prompts/visionV1.js';
 
 const COLLECTION = 'catalog_items';
 
@@ -24,13 +25,14 @@ export class CatalogRepository {
       title: '',
       description: '',
       tags: [],
+      embedText: '',
       image: data.image,
       embedding: [],
       status: 'pending',
       llm: {
         visionModel: config.OLLAMA_VISION_MODEL,
         embedModel: config.OLLAMA_EMBED_MODEL,
-        promptVersion: 'v1',
+        promptVersion: PROMPT_VERSION,
         ...data.llm,
       },
       createdAt: now,

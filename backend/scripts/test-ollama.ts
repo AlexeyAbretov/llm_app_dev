@@ -9,6 +9,7 @@ import {
 } from '../src/services/ollama.js';
 import { getUrl, save } from '../src/services/imageStorage.js';
 import { parseVisionResponse } from '../src/services/llmParser.js';
+import { nomicEmbedInput } from '../src/services/nomic.js';
 
 const monorepoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..');
 
@@ -23,7 +24,8 @@ function testParserMarkdown(): void {
 {
   "title": "Керамическая ваза",
   "description": "Высокая ваза с синим орнаментом. Подходит для интерьера.",
-  "tags": ["ваза", "керамика", "орнамент"]
+  "tags": ["ваза", "керамика", "орнамент"],
+  "embedText": "ceramic vase blue ornament decorative vessel"
 }
 \`\`\``;
 
@@ -31,6 +33,10 @@ function testParserMarkdown(): void {
   console.log('title:', result.title);
   console.log('description:', result.description);
   console.log('tags:', result.tags.join(', '));
+  console.log('embedText:', result.embedText);
+  if (!result.embedText.includes('ceramic vase')) {
+    throw new Error('parser: ожидался embedText');
+  }
 }
 
 async function testMutex(): Promise<void> {
@@ -71,9 +77,13 @@ async function testE2E(imagePath: string): Promise<void> {
   console.log('\ntitle:', parsed.title);
   console.log('description:', parsed.description);
   console.log('tags:', parsed.tags.join(', '));
+  console.log('embedText:', parsed.embedText);
 
-  const embedText = `${parsed.title}. ${parsed.description}. ${parsed.tags.join(', ')}`;
-  const embedding = await generateEmbedding(embedText);
+  if (!parsed.embedText?.trim()) {
+    throw new Error('vision не вернул embedText');
+  }
+
+  const embedding = await generateEmbedding(nomicEmbedInput(parsed.embedText, 'document'));
   console.log('\nembedding.length:', embedding.length);
   console.log('embedding[0..2]:', embedding.slice(0, 3));
 

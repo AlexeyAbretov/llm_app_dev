@@ -22,6 +22,8 @@ export interface CatalogItem {
   title: string;
   description: string;
   tags: string[];
+  /** Английский текст для nomic / $text; в API не отдаём. */
+  embedText: string;
   image: CatalogItemImage;
   /** 768 dims (nomic-embed-text) */
   embedding: number[];
@@ -33,6 +35,6 @@ export interface CatalogItem {
 }
 
 /** Объект для API-ответов (без embedding) */
-export type CatalogItemPublic = Omit<CatalogItem, 'embedding'> & {
+export type CatalogItemPublic = Omit<CatalogItem, 'embedding' | 'embedText'> & {
   imageUrl?: string;
 };

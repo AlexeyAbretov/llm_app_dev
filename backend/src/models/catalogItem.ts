@@ -12,6 +12,7 @@ export interface CatalogItemDocument {
   title: string;
   description: string;
   tags: string[];
+  embedText: string;
   image: CatalogItemImage;
   embedding: number[];
   status: ProcessingStatus;
@@ -36,6 +37,7 @@ export function toCatalogItem(doc: CatalogItemDocument): CatalogItem {
     title: doc.title,
     description: doc.description,
     tags: doc.tags,
+    embedText: doc.embedText ?? '',
     image: doc.image,
     embedding: doc.embedding,
     status: doc.status,

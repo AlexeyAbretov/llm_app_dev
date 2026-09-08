@@ -1,9 +1,9 @@
 import type { CatalogItem, CatalogItemPublic } from '@llm-app/shared';
 import { getUrl } from '../services/imageStorage.js';
 
-/** API-ответ без embedding, с imageUrl для сохранённых файлов. */
+/** API-ответ без embedding и embedText, с imageUrl для сохранённых файлов. */
 export function toPublicItem(item: CatalogItem): CatalogItemPublic {
-  const { embedding: _embedding, ...rest } = item;
+  const { embedding: _embedding, embedText: _embedText, ...rest } = item;
   const imageUrl =
     item.image.storage === 'disk' &&
     item.image.ref &&

@@ -11,16 +11,16 @@ alwaysApply: true
 
 - Frontend: React 18 + **TypeScript** + Vite + Tailwind + TanStack Query
 - Backend: Node.js + **Fastify** + **LangGraph.js** + Zod
-- AI: **Ollama** local — vision `qwen2.5vl:7b` (Ollama ≥ 0.7.0), embed `nomic-embed-text`
+- AI: **Ollama** local — vision `qwen2.5vl:7b` (Ollama ≥ 0.7.0), embed `nomic-embed-text`, translate `qwen2.5:0.5b`
 - DB: **MongoDB 7** local
 - Monorepo: `frontend/`, `backend/`, `shared/`
 
 ## Принципы
 
-- Только **русский** язык (UI, промпты, контент)
+- Только **русский** язык в UI и карточках. Скрытое `embedText` и перевод запроса — английский (nomic)
 - **Продукт локально** — без облачных LLM API для каталога. GitHub + Cursor Cloud — только для процесса (P1a)
 - **JavaScript/TS only** — Python не использовать
-- Vision и embed **последовательно** (RTX 4060 8 GB)
+- Vision и translate запроса **последовательно** (RTX 4060 8 GB)
 - Обработка **async** — статусы pending → processing → ready | failed
 
 ## MVP scope

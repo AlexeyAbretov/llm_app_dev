@@ -4,10 +4,10 @@ import type { PipelineGraphState } from '../state.js';
 
 export function createSaveDBNode(deps: PipelineDeps) {
   return async function saveDB(state: PipelineGraphState): Promise<Partial<PipelineGraphState>> {
-    const { itemId, title, description, tags, embedding, savedImage } = state;
+    const { itemId, title, description, tags, embedText, embedding, savedImage } = state;
 
     try {
-      if (!title || !description || !tags || !embedding?.length || !savedImage) {
+      if (!title || !description || !tags || !embedText || !embedding?.length || !savedImage) {
         throw new Error('Неполные данные для сохранения');
       }
 
@@ -15,6 +15,7 @@ export function createSaveDBNode(deps: PipelineDeps) {
         title,
         description,
         tags,
+        embedText,
         embedding,
         image: {
           storage: 'disk',

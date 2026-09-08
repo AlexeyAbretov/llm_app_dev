@@ -13,6 +13,7 @@ const envSchema = z.object({
   OLLAMA_BASE_URL: z.string().url().default('http://localhost:11434'),
   OLLAMA_VISION_MODEL: z.string().default('qwen2.5vl:7b'),
   OLLAMA_EMBED_MODEL: z.string().default('nomic-embed-text'),
+  OLLAMA_TRANSLATE_MODEL: z.string().default('qwen2.5:0.5b'),
   UPLOAD_DIR: z.string().default('./uploads'),
   PORT: z.coerce.number().int().positive().default(3001),
 });

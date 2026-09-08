@@ -5,6 +5,7 @@ import { VISION_PROMPT_V1 } from '../prompts/visionV1.js';
 
 const VISION_TIMEOUT_MS = 120_000;
 const EMBED_TIMEOUT_MS = 30_000;
+const TRANSLATE_TIMEOUT_MS = 20_000;
 /** Длинная сторона для vision: иначе qwen2.5vl:7b (ctx 4096) падает на фото 12 Мп. */
 const VISION_MAX_EDGE = 1024;
 
@@ -21,12 +22,12 @@ async function encodeImageForVision(imageBuffer: Buffer): Promise<string> {
   return resized.toString('base64');
 }
 
-/** Mutex: только одна vision-задача одновременно (P6). */
-let visionMutex: Promise<unknown> = Promise.resolve();
+/** Mutex: vision и перевод запроса не параллелить (P6, 8 GB). */
+let gpuMutex: Promise<unknown> = Promise.resolve();
 
-async function withVisionMutex<T>(fn: () => Promise<T>): Promise<T> {
-  const run = visionMutex.then(fn);
-  visionMutex = run.catch(() => undefined);
+async function withGpuMutex<T>(fn: () => Promise<T>): Promise<T> {
+  const run = gpuMutex.then(fn);
+  gpuMutex = run.catch(() => undefined);
   return run;
 }
 
@@ -71,7 +72,7 @@ export async function generateFromImage(
   imagePath: string,
   prompt: string = VISION_PROMPT_V1,
 ): Promise<string> {
-  return withVisionMutex(async () => {
+  return withGpuMutex(async () => {
     const imageBuffer = await readFile(imagePath);
     const base64 = await encodeImageForVision(imageBuffer);
 
@@ -166,9 +167,59 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   return requestEmbedding(text);
 }
 
+const TRANSLATE_PROMPT = `Translate the search query into English. Reply with only the English words, no quotes, no explanation.
+
+Query:`;
+
+function looksEnglish(query: string): boolean {
+  return !/[а-яё]/i.test(query);
+}
+
+/** RU→EN для nomic search_query. Уже английский запрос не трогаем. */
+export async function translateSearchQuery(query: string): Promise<string> {
+  const trimmed = query.trim();
+  if (!trimmed || looksEnglish(trimmed)) {
+    return trimmed;
+  }
+
+  return withGpuMutex(async () => {
+    const response = await ollamaFetch(
+      '/api/chat',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: config.OLLAMA_TRANSLATE_MODEL,
+          stream: false,
+          messages: [
+            {
+              role: 'user',
+              content: `${TRANSLATE_PROMPT} ${trimmed}`,
+            },
+          ],
+        }),
+      },
+      TRANSLATE_TIMEOUT_MS,
+    );
+
+    const data = (await response.json()) as ChatResponse;
+    const translated = data.message?.content
+      ?.trim()
+      .split('\n')[0]
+      ?.replace(/^["'«»]+|["'«»]+$/g, '')
+      .trim();
+
+    if (!translated) {
+      throw new Error('Ollama translate вернул пустой ответ');
+    }
+
+    return translated;
+  });
+}
+
 /** Только для тестов: сброс mutex между прогонами. */
 export function resetVisionMutexForTests(): void {
-  visionMutex = Promise.resolve();
+  gpuMutex = Promise.resolve();
 }
 
 /** @internal Проверка mutex: две задачи не выполняются параллельно. */
@@ -185,7 +236,7 @@ export async function assertVisionMutexSequential(): Promise<boolean> {
     concurrent -= 1;
   };
 
-  await Promise.all([withVisionMutex(task), withVisionMutex(task)]);
+  await Promise.all([withGpuMutex(task), withGpuMutex(task)]);
 
   return maxConcurrent === 1;
 }
