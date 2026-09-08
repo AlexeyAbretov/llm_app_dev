@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createItem } from '../api/items';
 import { ApiClientError } from '../api/client';
 import { ImageUpload } from '../components/ImageUpload';
@@ -12,6 +12,18 @@ export function UploadPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const { data: item } = useItem(uploadedId ?? undefined);
+  const invalidatedReadyIds = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (
+      uploadedId &&
+      item?.status === 'ready' &&
+      !invalidatedReadyIds.current.has(uploadedId)
+    ) {
+      invalidatedReadyIds.current.add(uploadedId);
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    }
+  }, [uploadedId, item?.status, queryClient]);
 
   const uploadMutation = useMutation({
     mutationFn: createItem,
