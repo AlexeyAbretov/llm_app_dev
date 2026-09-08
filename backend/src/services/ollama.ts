@@ -49,13 +49,34 @@ async function ollamaFetch(
   return response;
 }
 
-/** Ping Ollama через GET /api/tags. */
+interface OllamaTagsResponse {
+  models?: Array<{ name: string }>;
+}
+
+function modelIsAvailable(available: string[], required: string): boolean {
+  const base = required.split(':')[0];
+  return available.some(
+    (name) => name === required || name.startsWith(`${base}:`) || name === base,
+  );
+}
+
+/** Ping Ollama и проверка наличия vision/embed моделей (GET /api/tags). */
 export async function checkHealth(): Promise<boolean> {
   try {
     const response = await fetch(`${config.OLLAMA_BASE_URL}/api/tags`, {
       signal: AbortSignal.timeout(2000),
     });
-    return response.ok;
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = (await response.json()) as OllamaTagsResponse;
+    const names = data.models?.map((model) => model.name) ?? [];
+
+    return (
+      modelIsAvailable(names, config.OLLAMA_VISION_MODEL) &&
+      modelIsAvailable(names, config.OLLAMA_EMBED_MODEL)
+    );
   } catch {
     return false;
   }
