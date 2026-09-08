@@ -159,9 +159,9 @@
 
 ### Проверка
 
-- [ ] Тестовый скрипт: положить test.jpg → получить title/description на русском
-- [ ] Embedding возвращает массив ~768 float
-- [ ] Parser корректно обрабатывает JSON с markdown-обёрткой
+- [x] Тестовый скрипт: положить test.jpg → получить title/description на русском
+- [x] Embedding возвращает массив ~768 float
+- [x] Parser корректно обрабатывает JSON с markdown-обёрткой
 
 ---
 
