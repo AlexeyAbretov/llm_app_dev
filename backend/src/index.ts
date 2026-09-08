@@ -9,6 +9,7 @@ import { registerMongo } from './plugins/mongo.js';
 import { healthRoutes } from './routes/health.js';
 import { itemsRoutes } from './routes/items.js';
 import { searchRoutes } from './routes/search.js';
+import { generateEmbedding } from './services/ollama.js';
 
 async function buildApp() {
   const app = Fastify({ logger: true });
@@ -23,6 +24,7 @@ async function buildApp() {
       log: app.log,
     }),
   );
+  app.decorate('embedQuery', generateEmbedding);
 
   await app.register(multipart, {
     limits: {

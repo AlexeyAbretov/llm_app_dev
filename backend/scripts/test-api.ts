@@ -63,9 +63,13 @@ async function buildTestApp() {
       items: [sampleItem],
       total: 1,
     }),
+    findAllWithEmbeddings: async () => [sampleItem],
+    textSearch: async (q: string) =>
+      q.includes('ваза') ? [{ id: sampleItem._id, textScore: 1.5 }] : [],
   } as unknown as CatalogRepository;
 
   app.decorate('catalogRepository', mockRepo);
+  app.decorate('embedQuery', async () => sampleItem.embedding);
   app.decorate('pipelineRunner', {
     enqueue(input: { itemId: string }) {
       enqueued.push(input);
@@ -168,11 +172,29 @@ async function main(): Promise<void> {
   if (search.statusCode !== 200) {
     throw new Error(`GET /api/search: ${search.statusCode}`);
   }
-  const searchJson = JSON.parse(search.body) as { query: string; results: unknown[] };
-  if (searchJson.query !== 'ваза' || searchJson.results.length !== 0) {
+  const searchJson = JSON.parse(search.body) as {
+    query: string;
+    results: Array<{ item: { _id: string; title: string }; score: number }>;
+  };
+  if (searchJson.query !== 'ваза' || searchJson.results.length !== 1) {
     throw new Error(`GET /api/search: ${search.body}`);
   }
-  console.log('GET /api/search → placeholder ok');
+  if (searchJson.results[0]!.item._id !== sampleItem._id) {
+    throw new Error(`GET /api/search: неверный item id`);
+  }
+  if (searchJson.results[0]!.score <= 0) {
+    throw new Error(`GET /api/search: score=${searchJson.results[0]!.score}`);
+  }
+  console.log('GET /api/search → hybrid ok, score=', searchJson.results[0]!.score);
+
+  const emptySearch = await app.inject({
+    method: 'GET',
+    url: '/api/search?q=',
+  });
+  if (emptySearch.statusCode !== 400) {
+    throw new Error(`GET /api/search empty q: ожидался 400, получено ${emptySearch.statusCode}`);
+  }
+  console.log('GET /api/search (empty q) → 400');
 
   const badUpload = await app.inject({
     method: 'POST',

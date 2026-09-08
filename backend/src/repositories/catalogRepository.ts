@@ -121,4 +121,31 @@ export class CatalogRepository {
 
     return docs.map(toCatalogItem);
   }
+
+  /** Keyword-поиск через MongoDB $text (только ready). */
+  async textSearch(
+    query: string,
+  ): Promise<Array<{ id: string; textScore: number }>> {
+    const docs = await this.collection
+      .find(
+        {
+          $text: { $search: query },
+          status: 'ready' as const,
+        },
+        {
+          projection: {
+            score: { $meta: 'textScore' },
+          },
+        },
+      )
+      .toArray();
+
+    return docs.map((doc) => {
+      const withScore = doc as typeof doc & { score?: number };
+      return {
+        id: doc._id.toString(),
+        textScore: typeof withScore.score === 'number' ? withScore.score : 0,
+      };
+    });
+  }
 }
