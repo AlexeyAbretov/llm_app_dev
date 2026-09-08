@@ -45,7 +45,7 @@ curl -s http://localhost:3001/api/health | jq
 # { "status": "ok", "mongo": true, "ollama": true }
 ```
 
-`ollama: true` — Ollama отвечает и модели `qwen2.5vl:7b` + `nomic-embed-text` скачаны.
+`ollama: true` — Ollama отвечает и модели `qwen2.5vl:7b`, `nomic-embed-text` и `qwen2.5:0.5b` скачаны.
 
 ## Демо-сценарий MVP
 
