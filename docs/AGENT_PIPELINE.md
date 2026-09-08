@@ -99,7 +99,9 @@ Git — **только GitHub** (`origin`). Локальная Gitea не исп
 - Идемпотентность: одно активное облачное задание на пару `(issue, role)`.
 - В записи джоба обязательно: `cursorAgentId`, `cursorRunId`, URL issue/PR, статус, timestamps.
 
-Контейнер оркестратора **не** монтирует docker.sock. Сокет только у `deployer`.
+Контейнер оркестратора **не** монтирует docker.sock. Сокет только у `deployer` (`docker-compose.pipeline.yml`, health `http://127.0.0.1:3021/health`).
+
+Деплой: поллинг published GitHub Releases (draft пропускаются). Режим `DEPLOY_MODE=stub` (заглушка) или `compose` (`docker compose -f docker-compose.yml up -d` в смонтированном корне репо). Статус дописывается в тело Release; на open issues с `ready-for-release` / `release-approved` — `deployed` или `deploy-failed`.
 
 Ollama: `host.docker.internal:11434` для приложения каталога, не для оркестратора.
 

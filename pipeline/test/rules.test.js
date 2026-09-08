@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  appendDeployNote,
+  isDeployableRelease,
+  releaseBodyHasDeployMarker,
+  releasesToDeploy,
+} from "../dist/deploy-rules.js";
+import {
   decideReleaseManagerOutcome,
   decideTesterOutcome,
   releaseChangelog,
@@ -112,4 +118,58 @@ test("release-manager protocol mismatch needs human", () => {
     decideReleaseManagerOutcome("error", "PIPELINE_LABELS: ready-for-release", "v1.0.0", [], "body"),
     "needs-human",
   );
+});
+
+test("draft releases are not deployable", () => {
+  assert.equal(isDeployableRelease({ draft: true, tag_name: "v0.1.0" }), false);
+  assert.equal(isDeployableRelease({ draft: false, tag_name: "v0.1.0" }), true);
+});
+
+test("releasesToDeploy skips drafts and already deployed ids", () => {
+  const pending = releasesToDeploy(
+    [
+      {
+        id: 1,
+        tag_name: "v0.1.0",
+        name: null,
+        body: null,
+        html_url: "https://example/1",
+        draft: true,
+        prerelease: false,
+        published_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: 2,
+        tag_name: "v0.2.0",
+        name: null,
+        body: null,
+        html_url: "https://example/2",
+        draft: false,
+        prerelease: true,
+        published_at: "2026-01-02T00:00:00Z",
+      },
+      {
+        id: 3,
+        tag_name: "v0.3.0",
+        name: null,
+        body: null,
+        html_url: "https://example/3",
+        draft: false,
+        prerelease: false,
+        published_at: "2026-01-03T00:00:00Z",
+      },
+    ],
+    new Set([2]),
+  );
+  assert.deepEqual(
+    pending.map((item) => item.id),
+    [3],
+  );
+});
+
+test("deploy marker round-trip on release body", () => {
+  const body = appendDeployNote("notes", 42, "deployed", "stub ok");
+  assert.equal(releaseBodyHasDeployMarker(body, 42), true);
+  assert.equal(releaseBodyHasDeployMarker(body, 41), false);
+  assert.match(body, /Локальный деплой: `deployed`/);
 });

@@ -1,4 +1,5 @@
 import { parseOwnerRepo, type Config } from "./config.js";
+import type { GitHubRelease } from "./deploy-rules.js";
 import { prFixesIssue } from "./rules.js";
 
 export type GitHubIssue = {
@@ -339,6 +340,56 @@ export class GitHubClient {
     }
     const item = (await response.json()) as { id: number; html_url: string };
     return { id: item.id, html_url: item.html_url };
+  }
+
+  /** Non-draft releases (published), including prereleases. Drafts are omitted by this filter. */
+  async listPublishedReleases(): Promise<GitHubRelease[]> {
+    const { owner, repo } = this.repoPath();
+    const url = new URL(`https://api.github.com/repos/${owner}/${repo}/releases`);
+    url.searchParams.set("per_page", "20");
+    const response = await githubFetch(url, { headers: this.headers() });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub list releases ${response.status}: ${text.slice(0, 500)}`);
+    }
+    const items = (await response.json()) as Array<{
+      id: number;
+      tag_name: string;
+      name: string | null;
+      body: string | null;
+      html_url: string;
+      draft: boolean;
+      prerelease: boolean;
+      published_at: string | null;
+    }>;
+    return items
+      .filter((item) => !item.draft)
+      .map((item) => ({
+        id: item.id,
+        tag_name: item.tag_name,
+        name: item.name,
+        body: item.body,
+        html_url: item.html_url,
+        draft: item.draft,
+        prerelease: item.prerelease,
+        published_at: item.published_at,
+      }));
+  }
+
+  async updateReleaseBody(releaseId: number, body: string): Promise<void> {
+    const { owner, repo } = this.repoPath();
+    const response = await githubFetch(
+      `https://api.github.com/repos/${owner}/${repo}/releases/${releaseId}`,
+      {
+        method: "PATCH",
+        headers: { ...this.headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ body }),
+      },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub update release ${response.status}: ${text.slice(0, 500)}`);
+    }
   }
 }
 

@@ -212,17 +212,17 @@ Issue → план → PR → проверка → draft release → апрув 
 
 ### Шаги
 
-1. Сервис `deployer` в `docker-compose.pipeline.yml`.
-2. Триггер: поллинг latest Release **или** self-hosted runner на `release: published` / tag `v*`.
-3. Checkout tag, `docker compose` **каталога** (mongo + app). Ollama в этот compose не класть.
-4. Только `deployer` с docker.sock (на Windows — named pipe Docker Desktop).
-5. Health → `deployed` / `deploy-failed` и комментарий в Release.
-6. Пока каталога нет: заглушка «tag доехал, echo deploy».
+1. Сервис `deployer` в `docker-compose.pipeline.yml` (порт `3021`, отдельный от орка).
+2. Триггер: поллинг **published** Release (не draft; pre-release ок).
+3. `DEPLOY_MODE=stub` (по умолчанию) или `compose` → `docker compose` каталога (сейчас mongo). Ollama не в compose.
+4. Только `deployer` с docker.sock (Docker Desktop: `/var/run/docker.sock`).
+5. Результат: запись в тело Release + labels `deployed` / `deploy-failed` на open issues с `ready-for-release` / `release-approved`.
+6. Идемпотентность: `deploys.json` + маркер `<!-- pipeline:deploy:ID -->` в теле Release.
 
 ### Проверка
 
-- [ ] Тестовый pre-release → лог deployer, статус в GitHub
-- [ ] Оркестратор без sock не выполняет `docker ps`
+- [ ] Тестовый published (или pre-release) Release → лог deployer, блок в теле Release
+- [ ] У `orchestrator` нет docker.sock; `docker ps` только из `deployer`
 
 ---
 

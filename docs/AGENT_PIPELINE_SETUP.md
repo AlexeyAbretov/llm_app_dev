@@ -3,7 +3,7 @@
 Контракт (роли, labels): [AGENT_PIPELINE.md](./AGENT_PIPELINE.md).  
 Этапы разработки: [AGENT_PIPELINE_PLAN.md](./AGENT_PIPELINE_PLAN.md).
 
-Сейчас из коробки поднимаются **P0–P6**: оркестратор, аналитик, разработчик (PR), тестировщик по `in-qa`, релиз-менеджер по `qa-passed` (draft Release + `ready-for-release`). Локальный деплой каталога — P7.
+Сейчас из коробки поднимаются **P0–P7**: оркестратор, роли Cloud до релиз-менеджера, локальный **deployer** (поллинг published Release). UI оркестратора и цикл QA (P8) — позже.
 
 Каталог объектов (Ollama, MongoDB) **не нужен**, чтобы запустить оркестратор.
 
@@ -18,8 +18,9 @@
 5. На `ready-for-dev` стартует разработчик (`in-dev`). После открытого PR `Fixes #N` — `in-qa` (не merge в `main`).
 6. На `in-qa` стартует тестировщик (ревью ветки PR). CI: workflow `.github/workflows/ci.yml`, job `ci`.
 7. На `qa-passed` стартует релиз-менеджер → draft Release, assignee owner, request review, `ready-for-release`. Publish / merge — после вашей метки `release-approved`, вручную.
+8. После **Publish** Release (не draft) локальный `deployer` пишет статус в тело Release и labels `deployed` / `deploy-failed` (по умолчанию `DEPLOY_MODE=stub`).
 
-Повторный полл ту же пару `(issue, role)` не запускает — состояние в volume `jobs.json`.
+Повторный полл ту же пару `(issue, role)` не запускает — состояние в volume `jobs.json`. Деплои — в `deploys.json` того же volume.
 
 ---
 
@@ -61,6 +62,8 @@ Issues → Labels. Создайте, если нет (имена **точно** 
 | `qa-passed` | QA успешно пройден |
 | `ready-for-release` | RM собрал draft, ждёт апрув |
 | `release-approved` | человек разрешил merge/Publish (ставит вручную) |
+| `deployed` | локальный деплой успешен |
+| `deploy-failed` | локальный деплой упал |
 | `needs-human` | стоп автоматики |
 | `p0` … `p3` | приоритет (по желанию) |
 
@@ -144,12 +147,23 @@ docker compose -f docker-compose.pipeline.yml up --build -d
 Проверка:
 
 ```powershell
-# PowerShell
 Invoke-RestMethod http://127.0.0.1:3020/health
+Invoke-RestMethod http://127.0.0.1:3021/health
 docker compose -f docker-compose.pipeline.yml logs -f orchestrator
+docker compose -f docker-compose.pipeline.yml logs -f deployer
 ```
 
-Ожидаемые логи без issue: `poll tick`, без `GITHUB_TOKEN or GITHUB_REPO empty`.
+Ожидаемые логи орка без issue: `poll tick`. Deployer: `deploy poll tick`, без `GITHUB_TOKEN or GITHUB_REPO empty`.
+
+У `orchestrator` **нет** docker.sock. Проверка (должен упасть / не видеть демон):
+
+```powershell
+docker compose -f docker-compose.pipeline.yml exec orchestrator docker ps
+```
+
+У `deployer` sock есть; при `DEPLOY_MODE=compose` он делает `docker compose -f docker-compose.yml up -d` в `/workspace` (корень репо). По умолчанию `DEPLOY_MODE=stub` — только запись в GitHub без `compose up`.
+
+После **Publish** Release (не draft, можно pre-release): в теле Release блок с `<!-- pipeline:deploy:… -->`, на open issues с `ready-for-release`/`release-approved` — `deployed` или `deploy-failed`.
 
 После правки `pipeline/.env`:
 
@@ -223,7 +237,7 @@ docker compose -f docker-compose.pipeline.yml up -d
 | `Failed to verify existence of branch 'main'` | Ветка есть на GitHub; Cursor GitHub App видит **этот** репо (owner, не collaborator) |
 | `resource_exhausted` retryable=true | Лимит Cloud Agents / Usage; подождать, не чистить `jobs.json` в цикле |
 | Агент не стартует, только `needs-plan` | Добавьте `feature` или `bug` |
-| Метка не ставится, label 404/422 | Создайте `ready-for-dev`, `needs-human`, `in-dev`, `in-qa`, `qa-in-progress`, `qa-passed`, `ready-for-release`, `release-approved` в репо |
+| Метка не ставится, label 404/422 | Создайте `ready-for-dev`, `needs-human`, `in-dev`, `in-qa`, `qa-in-progress`, `qa-passed`, `ready-for-release`, `release-approved`, `deployed`, `deploy-failed` в репо |
 | Повторно не берёт issue | Так задумано, если job уже есть; сброс `jobs.json` |
 | Issue с `feature`+`needs-plan` «не подхватывается» | Старый баг: фильтр `since`. Нужна версия без `since` + пересборка compose. Не обязательно комментировать issue |
 | `agentId` пустой, сразу `cursor run failed` | Смотреть текст `Ошибка:` в комментарии issue или `exec cat /data/jobs.json` |
@@ -232,9 +246,10 @@ docker compose -f docker-compose.pipeline.yml up -d
 
 ## 10. Что ещё не запускается
 
-- Локальный deployer каталога (P7).
 - UI оркестратора.
 - Автоmerge / авто-Publish после `release-approved`.
-- Каталог: `docker compose up` MongoDB / `ollama serve` — отдельный трек, [MVP_PLAN.md](./MVP_PLAN.md).
+- Цикл QA / fix-round (P8).
+- Полноценный checkout tag + app-контейнер каталога (сейчас stub или только mongo compose).
+- Каталог: Ollama на хосте — [MVP_PLAN.md](./MVP_PLAN.md).
 
 Промпты ролей: `pipeline/prompts/`.

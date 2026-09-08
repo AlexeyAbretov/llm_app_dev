@@ -2,6 +2,7 @@ services:
   orchestrator:
     build:
       context: ./pipeline
+    command: ["node", "dist/index.js"]
     env_file:
       - path: pipeline/.env
         required: true
@@ -13,6 +14,33 @@ services:
       - "127.0.0.1:3020:3020"
     volumes:
       - pipeline_data:/data
+    # без docker.sock — деплой только у deployer
+    user: "0"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    restart: unless-stopped
+
+  deployer:
+    build:
+      context: ./pipeline
+    command: ["node", "dist/deployer.js"]
+    env_file:
+      - path: pipeline/.env
+        required: true
+    environment:
+      PORT: "3021"
+      DATA_DIR: /data
+      DEPLOY_COMPOSE_FILE: docker-compose.yml
+      WORKSPACE_DIR: /workspace
+      # DEPLOY_MODE из pipeline/.env (по умолчанию stub в коде)
+    ports:
+      - "127.0.0.1:3021:3021"
+    volumes:
+      - pipeline_data:/data
+      - .:/workspace:ro
+      # Docker Desktop (Windows/macOS) и Linux: sock хоста → контейнер
+      - /var/run/docker.sock:/var/run/docker.sock
     user: "0"
     dns:
       - 8.8.8.8

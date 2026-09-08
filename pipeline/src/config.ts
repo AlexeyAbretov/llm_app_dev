@@ -11,6 +11,11 @@ const envSchema = z.object({
   CURSOR_MODEL: z.string().default("composer-2.5"),
   DATA_DIR: z.string().default("/data"),
   PROMPTS_DIR: z.string().default("/app/prompts"),
+  /** stub = echo only; compose = docker compose каталога (mongo). */
+  DEPLOY_MODE: z.enum(["stub", "compose"]).default("stub"),
+  DEPLOY_COMPOSE_FILE: z.string().default("docker-compose.yml"),
+  /** Каталог с compose на хосте, смонтированный в контейнер. */
+  WORKSPACE_DIR: z.string().default("/workspace"),
 });
 
 export type Config = z.infer<typeof envSchema>;

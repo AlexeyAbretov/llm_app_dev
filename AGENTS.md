@@ -44,7 +44,7 @@ ollama serve                   # Ollama (на хосте, нужен GPU)
 npm run dev                    # frontend + backend
 npm run dev:backend            # только backend
 npm run dev:frontend           # только frontend (заглушка до этапа 6)
-docker compose -f docker-compose.pipeline.yml up --build -d   # оркестратор, см. docs/AGENT_PIPELINE_SETUP.md
+docker compose -f docker-compose.pipeline.yml up --build -d   # оркестратор + deployer, см. docs/AGENT_PIPELINE_SETUP.md
 ```
 
 ## Железо
