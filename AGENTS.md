@@ -29,14 +29,21 @@
 - Merge в `main` **только после явного подтверждения** пользователя
 - Подробнее: [CONSTITUTION.md §3](docs/CONSTITUTION.md#3-git-workflow)
 
-## Команды (будут добавлены при scaffold)
+## Команды
+
+Пререквизиты (один раз):
+
+```bash
+npm install
+cp .env.example .env
+```
 
 ```bash
 docker compose up -d mongo     # MongoDB
 ollama serve                   # Ollama (на хосте, нужен GPU)
 npm run dev                    # frontend + backend
 npm run dev:backend            # только backend
-npm run dev:frontend           # только frontend
+npm run dev:frontend           # только frontend (заглушка до этапа 6)
 docker compose -f docker-compose.pipeline.yml up --build -d   # оркестратор, см. docs/AGENT_PIPELINE_SETUP.md
 ```
 
