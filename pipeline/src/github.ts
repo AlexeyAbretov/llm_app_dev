@@ -167,6 +167,43 @@ export class GitHubClient {
     }
   }
 
+  async getIssue(issue: number): Promise<GitHubIssue & { state: "open" | "closed" }> {
+    const { owner, repo } = this.repoPath();
+    const response = await githubFetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues/${issue}`,
+      { headers: this.headers() },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub get issue ${response.status}: ${text.slice(0, 500)}`);
+    }
+    const item = (await response.json()) as GitHubIssueRaw & { state: "open" | "closed" };
+    return {
+      number: item.number,
+      title: item.title,
+      body: item.body,
+      html_url: item.html_url,
+      labels: labelNames(item.labels),
+      state: item.state,
+    };
+  }
+
+  async updateIssueBody(issue: number, body: string): Promise<void> {
+    const { owner, repo } = this.repoPath();
+    const response = await githubFetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues/${issue}`,
+      {
+        method: "PATCH",
+        headers: { ...this.headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ body }),
+      },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub update issue ${response.status}: ${text.slice(0, 500)}`);
+    }
+  }
+
   async addIssueLabels(issue: number, labels: string[]): Promise<void> {
     if (labels.length === 0) {
       return;

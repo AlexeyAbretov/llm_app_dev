@@ -3,7 +3,7 @@
 Контракт (роли, labels): [AGENT_PIPELINE.md](./AGENT_PIPELINE.md).  
 Этапы разработки: [AGENT_PIPELINE_PLAN.md](./AGENT_PIPELINE_PLAN.md).
 
-Сейчас из коробки поднимаются **P0–P7**: оркестратор, роли Cloud до релиз-менеджера, локальный **deployer** (поллинг published Release). UI оркестратора и цикл QA (P8) — позже.
+Сейчас из коробки поднимаются **P0–P8**: оркестратор, роли Cloud, deployer, цикл QA (`fix-round`, re-QA родителя). UI оркестратора и P9 — позже.
 
 Каталог объектов (Ollama, MongoDB) **не нужен**, чтобы запустить оркестратор.
 
@@ -196,6 +196,8 @@ Volume `llm_app_dev_pipeline_data` хранит `jobs.json` (очередь). `d
 
 На `qa-passed`: `role: release-manager`. Агент отдаёт `PIPELINE_RELEASE_TAG`, `PIPELINE_PR_NUMBERS`, блок changelog и `PIPELINE_LABELS`. Оркестратор создаёт/обновляет **draft** Release, назначает owner, просит review на PR, ставит `ready-for-release`. Publish и merge в `main` оркестратор **не** делает. Апрув: вручную label `release-approved`, затем Publish Release / merge PR руками. Сбой протокола или GitHub API → `+needs-human`.
 
+Цикл QA: дочерние bugs → снова аналитик. В теле родителя `<!-- pipeline:child-bugs:… -->`; пока они в пайплайне, tester на родителе ждёт. После их `qa-passed`/закрытия — повторное QA родителя. `fix-round` в теле issue увеличивается при каждом старте разработчика; после 3 — четвёртый старт даёт `needs-human`.
+
 В issue — комментарии пайплайна и (обычно) план от агента. В Cursor Web агенты SDK: Filter → Source → **SDK**.
 
 CI на каждый PR: `.github/workflows/ci.yml`, check **`ci`**. Чтобы красный CI блокировал merge в `main`: GitHub → Settings → Rules → Rulesets (required status check `ci`). Пока ruleset не включён, merge руками всё равно возможен.
@@ -248,7 +250,7 @@ docker compose -f docker-compose.pipeline.yml up -d
 
 - UI оркестратора.
 - Автоmerge / авто-Publish после `release-approved`.
-- Цикл QA / fix-round (P8).
+- Cron due milestone (P9).
 - Полноценный checkout tag + app-контейнер каталога (сейчас stub или только mongo compose).
 - Каталог: Ollama на хосте — [MVP_PLAN.md](./MVP_PLAN.md).
 

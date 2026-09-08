@@ -7,13 +7,19 @@ import {
   releasesToDeploy,
 } from "../dist/deploy-rules.js";
 import {
+  childBugStillOpen,
   decideReleaseManagerOutcome,
   decideTesterOutcome,
+  fixRoundBlocksDeveloper,
+  parseChildBugIssues,
+  parseFixRound,
   releaseChangelog,
   releasePrNumbers,
   releaseTag,
   roleForLabels,
   testerBugIssues,
+  upsertChildBugIssuesInBody,
+  upsertFixRoundInBody,
 } from "../dist/rules.js";
 
 test("testerBugIssues parses issue numbers and removes duplicates", () => {
@@ -172,4 +178,23 @@ test("deploy marker round-trip on release body", () => {
   assert.equal(releaseBodyHasDeployMarker(body, 42), true);
   assert.equal(releaseBodyHasDeployMarker(body, 41), false);
   assert.match(body, /Локальный деплой: `deployed`/);
+});
+
+test("fix-round parses and blocks after MAX rounds", () => {
+  assert.equal(parseFixRound(null), null);
+  assert.equal(parseFixRound("fix-round: 2\n"), 2);
+  assert.equal(fixRoundBlocksDeveloper(null), false);
+  assert.equal(fixRoundBlocksDeveloper("fix-round: 2"), false);
+  assert.equal(fixRoundBlocksDeveloper("fix-round: 3"), true);
+  assert.equal(fixRoundBlocksDeveloper(upsertFixRoundInBody("task", 3)), true);
+  assert.match(upsertFixRoundInBody("task", 1), /fix-round: 1/);
+});
+
+test("child bug markers and open detection", () => {
+  const body = upsertChildBugIssuesInBody("parent", [17, 18, 17]);
+  assert.deepEqual(parseChildBugIssues(body), [17, 18]);
+  assert.equal(childBugStillOpen(["bug", "needs-plan"], "open"), true);
+  assert.equal(childBugStillOpen(["bug", "qa-passed"], "open"), false);
+  assert.equal(childBugStillOpen(["bug", "in-qa"], "closed"), false);
+  assert.equal(childBugStillOpen(["bug", "needs-human"], "open"), false);
 });

@@ -34,7 +34,7 @@ Git — **только GitHub** (`origin`). Локальная Gitea не исп
 | Релиз-менеджер | Cursor Cloud | Changelog, draft Release, запрос апрува | Merge/publish/tag без апрува человека |
 | Девопс | Локальный deployer | `compose up` по tag/Release, статус в GitHub | Работать из облака |
 
-Цикл аналитик → разработчик → тестировщик при новых багах, лимит **3** круга (`fix-round`), затем `needs-human`.
+Цикл аналитик → разработчик → тестировщик при новых багах, лимит **3** круга разработчика (`fix-round`), затем `needs-human`. Родитель ждёт дочерние bugs и проходит re-QA.
 
 ## 3. Labels и milestone
 
@@ -69,7 +69,9 @@ Git — **только GitHub** (`origin`). Локальная Gitea не исп
 
 Старт разработчика: `bug` или `feature` **и** `ready-for-dev`, нет открытого PR `Fixes #N` (или ветки `issue/<n>-…`). При старте оркестратор ставит `in-dev`. После PR: снимает `ready-for-dev` и `in-dev`, ставит `in-qa`. Если агент упал или PR нет — `needs-human`. Если PR уже открыт, агент не стартует, только метка `in-qa`.
 
-Старт тестировщика: `bug` или `feature` **и** `in-qa`, есть открытый PR `Fixes #N`. Перед запуском: `in-qa` → `qa-in-progress`. Агент возвращает номера дефектов в `PIPELINE_BUG_ISSUES`. Если дефектов нет: `qa-in-progress` → `qa-passed`. Если дефекты есть: оркестратор ставит им `bug` + `needs-plan`, а родителя возвращает в `in-qa`. Ошибка Cursor, протокола или маркировки → `needs-human`. Только `qa-passed` допускается к релиз-менеджеру. CI на PR: GitHub Actions job `ci`; required check на `main` включается ruleset вручную.
+Старт тестировщика: `bug` или `feature` **и** `in-qa`, есть открытый PR `Fixes #N`. Перед запуском: `in-qa` → `qa-in-progress`. Агент возвращает номера дефектов в `PIPELINE_BUG_ISSUES`. Если дефектов нет: `qa-in-progress` → `qa-passed`. Если дефекты есть: оркестратор ставит им `bug` + `needs-plan` (сброс джобов ролей на дочерних), пишет в родителя `<!-- pipeline:child-bugs:… -->`, родителя возвращает в `in-qa`. Пока дочерние открыты в пайплайне — повторный tester на родителе не стартует; когда все закрыты / `qa-passed` / `needs-human` — джоб tester сбрасывается, re-QA. Ошибка Cursor, протокола или маркировки → `needs-human`. Только `qa-passed` допускается к релиз-менеджеру. CI на PR: GitHub Actions job `ci`; required check на `main` включается ruleset вручную.
+
+**Цикл QA (fix-round):** при каждом старте разработчика в теле issue пишется / увеличивается `fix-round: N` (макс. **3**). Попытка 4-го старта → `needs-human`, облачный разработчик не вызывается. После бага нельзя оставить `ready-for-dev` без нового `needs-plan`.
 
 Старт релиз-менеджера: `bug` или `feature` **и** `qa-passed`, нет `ready-for-release` / `release-approved`. Агент возвращает тег, список PR и changelog-маркеры. Оркестратор: **assignee** = owner репо, request review на перечисленные PR, **Draft** GitHub Release (без publish и без создания git tag до Publish), label `ready-for-release`. Ошибка Cursor / протокола / GitHub → `needs-human`. После `release-approved` merge / Publish / tag делает **человек** (автоmerge вне scope первой волны).
 

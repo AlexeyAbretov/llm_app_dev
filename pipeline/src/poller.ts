@@ -5,15 +5,22 @@ import { GitHubClient, agentResultComment, jobComment, type GitHubIssue, type Gi
 import { JobStore } from "./jobs.js";
 import { jobLog } from "./log.js";
 import {
+  childBugStillOpen,
   decideAnalystOutcome,
   decideDeveloperOutcome,
   decideReleaseManagerOutcome,
   decideTesterOutcome,
+  fixRoundBlocksDeveloper,
+  MAX_FIX_ROUNDS,
+  parseChildBugIssues,
+  parseFixRound,
   releaseChangelog,
   releasePrNumbers,
   releaseTag,
   roleForLabels,
   testerBugIssues,
+  upsertChildBugIssuesInBody,
+  upsertFixRoundInBody,
 } from "./rules.js";
 import type { Role } from "./types.js";
 
@@ -122,17 +129,45 @@ async function applyTesterLabels(
 
 async function labelTesterBugs(
   github: GitHubClient,
-  parentIssue: number,
+  store: JobStore,
+  parent: GitHubIssue,
   bugIssues: number[],
 ): Promise<number[]> {
-  const children = bugIssues.filter((number) => number !== parentIssue);
+  const children = bugIssues.filter((number) => number !== parent.number);
   if (children.length !== bugIssues.length) {
     throw new Error("tester marked the parent issue as a child bug");
   }
   for (const issue of children) {
+    // Новый круг плана: сбросить джобы и state-метки, только bug + needs-plan.
+    store.removeRoles(issue, ["analyst", "developer", "tester", "release-manager"]);
+    await github.removeIssueLabel(issue, "ready-for-dev");
+    await github.removeIssueLabel(issue, "in-dev");
+    await github.removeIssueLabel(issue, "in-qa");
+    await github.removeIssueLabel(issue, "qa-in-progress");
+    await github.removeIssueLabel(issue, "qa-passed");
     await github.addIssueLabels(issue, ["bug", "needs-plan"]);
   }
+  const merged = [...new Set([...parseChildBugIssues(parent.body), ...children])];
+  await github.updateIssueBody(
+    parent.number,
+    upsertChildBugIssuesInBody(parent.body, merged),
+  );
   return children;
+}
+
+async function childBugsBlockingReQa(
+  github: GitHubClient,
+  parentBody: string | null,
+): Promise<number[]> {
+  const children = parseChildBugIssues(parentBody);
+  const blocking: number[] = [];
+  for (const number of children) {
+    const child = await github.getIssue(number);
+    if (childBugStillOpen(child.labels, child.state)) {
+      blocking.push(number);
+    }
+  }
+  return blocking;
 }
 
 async function applyReleasePackage(
@@ -167,6 +202,20 @@ async function handleIssue(
   const fields = { issue: issue.number, role, agentId: null, runId: null };
 
   if (role === "developer") {
+    if (fixRoundBlocksDeveloper(issue.body)) {
+      try {
+        await applyDeveloperLabels(github, issue.number, "needs-human");
+        await github.commentOnIssue(
+          issue.number,
+          `Пайплайн: лимит \`fix-round\` (${MAX_FIX_ROUNDS}) исчерпан — разработчик не стартует, нужен человек.`,
+        );
+        jobLog(logger, fields, `labels: fix-round limit → needs-human`);
+      } catch (err) {
+        logger.error({ err, issue: issue.number }, "fix-round limit labels failed");
+      }
+      return;
+    }
+
     let hasPr = false;
     try {
       hasPr = await github.hasOpenFixPr(issue.number);
@@ -199,6 +248,27 @@ async function handleIssue(
     }
   }
 
+  if (role === "tester") {
+    try {
+      const blocking = await childBugsBlockingReQa(github, issue.body);
+      if (blocking.length > 0) {
+        jobLog(
+          logger,
+          fields,
+          `skip tester: waiting for child bugs ${blocking.map((n) => `#${n}`).join(", ")}`,
+        );
+        return;
+      }
+      if (parseChildBugIssues(issue.body).length > 0 && store.find(issue.number, "tester")) {
+        store.remove(issue.number, "tester");
+        jobLog(logger, fields, "cleared tester job for re-QA after child bugs");
+      }
+    } catch (err) {
+      logger.error({ err, issue: issue.number }, "child bug status check failed");
+      return;
+    }
+  }
+
   if (store.find(issue.number, role)) {
     jobLog(logger, fields, "skip existing job");
     return;
@@ -217,6 +287,22 @@ async function handleIssue(
 
   store.update(job.id, { status: "running" });
   if (role === "developer") {
+    const nextRound = (parseFixRound(issue.body) ?? 0) + 1;
+    try {
+      const body = upsertFixRoundInBody(issue.body, nextRound);
+      await github.updateIssueBody(issue.number, body);
+      issue = { ...issue, body };
+      jobLog(logger, fields, `fix-round: ${nextRound}`);
+    } catch (err) {
+      store.update(job.id, { status: "startup_error", error: "failed to set fix-round" });
+      logger.error({ err, issue: issue.number }, "fix-round update failed");
+      try {
+        await applyDeveloperLabels(github, issue.number, "needs-human");
+      } catch (labelErr) {
+        logger.error({ err: labelErr, issue: issue.number }, "github fallback labels failed");
+      }
+      return;
+    }
     try {
       await github.addIssueLabels(issue.number, ["in-dev"]);
       jobLog(logger, fields, "labels: +in-dev");
@@ -344,7 +430,7 @@ async function handleIssue(
     );
     if (testerDecision === "in-qa") {
       try {
-        const bugs = await labelTesterBugs(github, issue.number, bugIssues ?? []);
+        const bugs = await labelTesterBugs(github, store, issue, bugIssues ?? []);
         jobLog(
           logger,
           {

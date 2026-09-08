@@ -205,3 +205,82 @@ export function prFixesIssue(pr: {
   }
   return new RegExp(`^issue/${issue}(?:-|$)`).test(pr.headRef);
 }
+
+/** Completed developer starts allowed before needs-human (4th attempt blocked). */
+export const MAX_FIX_ROUNDS = 3;
+
+export function parseFixRound(body: string | null): number | null {
+  if (!body) {
+    return null;
+  }
+  const marker = body.match(/^(?:<!--\s*)?fix-round:\s*(\d+)\s*(?:-->)?\s*$/im);
+  if (!marker) {
+    return null;
+  }
+  const value = Number(marker[1]);
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+/** True when another developer start is not allowed (already used MAX rounds). */
+export function fixRoundBlocksDeveloper(body: string | null): boolean {
+  const round = parseFixRound(body) ?? 0;
+  return round >= MAX_FIX_ROUNDS;
+}
+
+export function upsertFixRoundInBody(body: string | null, round: number): string {
+  const line = `fix-round: ${round}`;
+  const html = `<!-- pipeline:fix-round:${round} -->`;
+  const base = (body ?? "")
+    .replace(/^(?:<!--\s*)?fix-round:\s*\d+\s*(?:-->)?\s*$/gim, "")
+    .replace(/<!--\s*pipeline:fix-round:\d+\s*-->/gi, "")
+    .trimEnd();
+  if (!base) {
+    return `${line}\n${html}`;
+  }
+  return `${base}\n\n${line}\n${html}`;
+}
+
+export function parseChildBugIssues(body: string | null): number[] {
+  if (!body) {
+    return [];
+  }
+  const marker = body.match(/<!--\s*pipeline:child-bugs:([0-9,\s]+)\s*-->/i);
+  if (!marker) {
+    return [];
+  }
+  return [
+    ...new Set(
+      marker[1]
+        .split(",")
+        .map((value) => Number(value.trim()))
+        .filter((value) => Number.isSafeInteger(value) && value > 0),
+    ),
+  ];
+}
+
+export function upsertChildBugIssuesInBody(body: string | null, bugs: number[]): string {
+  const unique = [...new Set(bugs.filter((n) => Number.isSafeInteger(n) && n > 0))];
+  const marker = `<!-- pipeline:child-bugs:${unique.join(",")} -->`;
+  const base = (body ?? "").replace(/<!--\s*pipeline:child-bugs:[0-9,\s]*\s*-->/gi, "").trimEnd();
+  if (unique.length === 0) {
+    return base;
+  }
+  if (!base) {
+    return marker;
+  }
+  return `${base}\n\n${marker}`;
+}
+
+/** Child is still in the fix pipeline (blocks parent re-QA). */
+export function childBugStillOpen(labels: string[], state: "open" | "closed"): boolean {
+  if (state === "closed") {
+    return false;
+  }
+  if (labels.includes("qa-passed") || labels.includes("ready-for-release") || labels.includes("deployed")) {
+    return false;
+  }
+  if (labels.includes("needs-human")) {
+    return false;
+  }
+  return true;
+}

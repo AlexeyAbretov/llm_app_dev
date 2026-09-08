@@ -56,6 +56,24 @@ export class JobStore {
     return job;
   }
 
+  /** Drop (issue, role) so a later cycle can run again (QA loop / re-plan). */
+  remove(issue: number, role: Role): boolean {
+    const data = this.load();
+    const next = data.jobs.filter((job) => !(job.issue === issue && job.role === role));
+    if (next.length === data.jobs.length) {
+      return false;
+    }
+    data.jobs = next;
+    this.save(data);
+    return true;
+  }
+
+  removeRoles(issue: number, roles: Role[]): void {
+    for (const role of roles) {
+      this.remove(issue, role);
+    }
+  }
+
   update(
     id: string,
     patch: Partial<Pick<Job, "status" | "agentId" | "runId" | "error">>,
