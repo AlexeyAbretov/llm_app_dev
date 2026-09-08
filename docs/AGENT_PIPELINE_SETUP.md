@@ -173,7 +173,7 @@ Volume `llm_app_dev_pipeline_data` хранит `jobs.json` (очередь). `d
 
 Дальше, если стоит `ready-for-dev` и нет открытого PR: `labels: +in-dev` → разработчик → `labels: … +in-qa` или `+needs-human`. Не вешайте `ready-for-dev` сразу на все MVP-issues: разработчик будет кодить каждую.
 
-На `in-qa` с открытым PR: `role: tester` → ревью ветки. Успех: `labels: keep in-qa`. Ошибка: `+needs-human`. Без PR: `skip tester: no open Fixes PR`.
+На `in-qa` с открытым PR: `role: tester` → ревью ветки. Тестировщик возвращает `PIPELINE_BUG_ISSUES`; оркестратор ставит перечисленным issues `bug` + `needs-plan`. Успех: `labels: keep in-qa`. Нет маркера, ошибка маркировки или ошибка агента: `+needs-human`. Без PR: `skip tester: no open Fixes PR`.
 
 В issue — комментарии пайплайна и (обычно) план от агента. В Cursor Web агенты SDK: Filter → Source → **SDK**.
 

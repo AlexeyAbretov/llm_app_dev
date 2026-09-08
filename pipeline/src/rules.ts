@@ -78,6 +78,26 @@ export function decideTesterOutcome(
   return "in-qa";
 }
 
+export function testerBugIssues(resultText: string | null): number[] | null {
+  const marker = resultText?.match(
+    /^PIPELINE_BUG_ISSUES:\s*(none|(?:#?\d+(?:\s*,\s*#?\d+)*))\s*$/im,
+  );
+  if (!marker) {
+    return null;
+  }
+  if (marker[1].toLowerCase() === "none") {
+    return [];
+  }
+  return [
+    ...new Set(
+      marker[1]
+        .split(",")
+        .map((value) => Number(value.trim().replace(/^#/, "")))
+        .filter((value) => Number.isSafeInteger(value) && value > 0),
+    ),
+  ];
+}
+
 export function prFixesIssue(pr: {
   title: string;
   body: string | null;

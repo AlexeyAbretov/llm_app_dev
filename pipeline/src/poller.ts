@@ -9,6 +9,7 @@ import {
   decideDeveloperOutcome,
   decideTesterOutcome,
   roleForLabels,
+  testerBugIssues,
 } from "./rules.js";
 import type { Role } from "./types.js";
 
@@ -114,6 +115,25 @@ async function applyTesterLabels(
   }
   await github.removeIssueLabel(issue, "in-qa");
   await github.addIssueLabels(issue, ["needs-human"]);
+}
+
+async function labelTesterBugs(
+  github: GitHubClient,
+  parentIssue: number,
+  resultText: string | null,
+): Promise<number[]> {
+  const bugIssues = testerBugIssues(resultText);
+  if (bugIssues === null) {
+    throw new Error("tester result has no PIPELINE_BUG_ISSUES marker");
+  }
+  const children = bugIssues.filter((number) => number !== parentIssue);
+  if (children.length !== bugIssues.length) {
+    throw new Error("tester marked the parent issue as a child bug");
+  }
+  for (const issue of children) {
+    await github.addIssueLabels(issue, ["bug", "needs-plan"]);
+  }
+  return children;
 }
 
 async function handleIssue(
@@ -277,7 +297,27 @@ async function handleIssue(
   }
 
   if (role === "tester") {
-    const testerDecision = decideTesterOutcome(outcome.status, outcome.resultText);
+    let testerDecision = decideTesterOutcome(outcome.status, outcome.resultText);
+    if (testerDecision === "in-qa") {
+      try {
+        const bugs = await labelTesterBugs(github, issue.number, outcome.resultText);
+        jobLog(
+          logger,
+          {
+            issue: issue.number,
+            role,
+            agentId: outcome.agentId,
+            runId: outcome.runId,
+          },
+          bugs.length
+            ? `labeled tester bugs: ${bugs.map((number) => `#${number}`).join(", ")}`
+            : "tester reported no bugs",
+        );
+      } catch (err) {
+        testerDecision = "needs-human";
+        logger.error({ err, issue: issue.number }, "tester bug handoff failed");
+      }
+    }
     decision = testerDecision;
     try {
       await applyTesterLabels(github, issue.number, testerDecision);
