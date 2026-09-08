@@ -1,9 +1,25 @@
 import { readFile } from 'node:fs/promises';
+import sharp from 'sharp';
 import { config } from '../config.js';
 import { VISION_PROMPT_V1 } from '../prompts/visionV1.js';
 
 const VISION_TIMEOUT_MS = 120_000;
 const EMBED_TIMEOUT_MS = 30_000;
+/** Длинная сторона для vision: иначе qwen2.5vl:7b (ctx 4096) падает на фото 12 Мп. */
+const VISION_MAX_EDGE = 1024;
+
+async function encodeImageForVision(imageBuffer: Buffer): Promise<string> {
+  const resized = await sharp(imageBuffer)
+    .rotate()
+    .resize(VISION_MAX_EDGE, VISION_MAX_EDGE, {
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+
+  return resized.toString('base64');
+}
 
 /** Mutex: только одна vision-задача одновременно (P6). */
 let visionMutex: Promise<unknown> = Promise.resolve();
@@ -57,7 +73,7 @@ export async function generateFromImage(
 ): Promise<string> {
   return withVisionMutex(async () => {
     const imageBuffer = await readFile(imagePath);
-    const base64 = imageBuffer.toString('base64');
+    const base64 = await encodeImageForVision(imageBuffer);
 
     const response = await ollamaFetch(
       '/api/chat',
