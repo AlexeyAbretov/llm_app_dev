@@ -132,9 +132,9 @@
 
 ### Проверка
 
-- [ ] Insert документ через repository
-- [ ] Text index создан (`db.catalog_items.getIndexes()`)
-- [ ] Pagination работает
+- [x] Insert документ через repository
+- [x] Text index создан (`db.catalog_items.getIndexes()`)
+- [x] Pagination работает
 
 ---
 

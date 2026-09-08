@@ -44,7 +44,8 @@ docker compose up -d mongo     # MongoDB
 ollama serve                   # Ollama (на хосте, нужен GPU)
 npm run dev                    # frontend + backend
 npm run dev:backend            # только backend
-npm run dev:frontend           # только frontend (заглушка до этапа 6)
+npm run test:catalog-repo -w @llm-app/backend   # проверка CatalogRepository (нужен MongoDB)
+npm run dev:frontend             # только frontend (заглушка до этапа 6)
 docker compose -f docker-compose.pipeline.yml up --build -d   # оркестратор + deployer, см. docs/AGENT_PIPELINE_SETUP.md
 ```
 
