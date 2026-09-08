@@ -1,4 +1,5 @@
 import type { Db, MongoClient } from 'mongodb';
+import type { PipelineRunner } from '../graph/runner.js';
 import type { CatalogRepository } from '../repositories/catalogRepository.js';
 
 declare module 'fastify' {
@@ -8,5 +9,6 @@ declare module 'fastify' {
       db: Db;
     };
     catalogRepository: CatalogRepository;
+    pipelineRunner: PipelineRunner;
   }
 }
