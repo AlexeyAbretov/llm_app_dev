@@ -25,6 +25,10 @@ PIPELINE_BUG_ISSUES: none
 
 Вторая (последняя) — строго одна из:
 
+PIPELINE_LABELS: qa-passed
+
+если дефекты созданы:
+
 PIPELINE_LABELS: in-qa
 
 или (нельзя завершить ревью / нужен человек, не баг в продукте):

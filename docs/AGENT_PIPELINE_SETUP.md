@@ -55,7 +55,9 @@ Issues → Labels. Создайте, если нет (имена **точно** 
 | `needs-plan` | очередь аналитика |
 | `ready-for-dev` | план принят, очередь разработчика |
 | `in-dev` | разработчик работает |
-| `in-qa` | есть PR, очередь тестировщика (P5) |
+| `in-qa` | PR ждёт QA или исправления дефектов |
+| `qa-in-progress` | тестировщик работает |
+| `qa-passed` | QA успешно пройден |
 | `needs-human` | стоп автоматики |
 | `p0` … `p3` | приоритет (по желанию) |
 
@@ -173,7 +175,7 @@ Volume `llm_app_dev_pipeline_data` хранит `jobs.json` (очередь). `d
 
 Дальше, если стоит `ready-for-dev` и нет открытого PR: `labels: +in-dev` → разработчик → `labels: … +in-qa` или `+needs-human`. Не вешайте `ready-for-dev` сразу на все MVP-issues: разработчик будет кодить каждую.
 
-На `in-qa` с открытым PR: `role: tester` → ревью ветки. Тестировщик возвращает `PIPELINE_BUG_ISSUES`; оркестратор ставит перечисленным issues `bug` + `needs-plan`. Успех: `labels: keep in-qa`. Нет маркера, ошибка маркировки или ошибка агента: `+needs-human`. Без PR: `skip tester: no open Fixes PR`.
+На `in-qa` с открытым PR: `-in-qa +qa-in-progress` → `role: tester`. Тестировщик возвращает `PIPELINE_BUG_ISSUES`; оркестратор ставит перечисленным issues `bug` + `needs-plan` и возвращает родителя в `in-qa`. Без дефектов: `-qa-in-progress +qa-passed`. Нет маркера, ошибка маркировки или ошибка агента: `+needs-human`. Без PR: `skip tester: no open Fixes PR`.
 
 В issue — комментарии пайплайна и (обычно) план от агента. В Cursor Web агенты SDK: Filter → Source → **SDK**.
 
@@ -215,7 +217,7 @@ docker compose -f docker-compose.pipeline.yml up -d
 | `Failed to verify existence of branch 'main'` | Ветка есть на GitHub; Cursor GitHub App видит **этот** репо (owner, не collaborator) |
 | `resource_exhausted` retryable=true | Лимит Cloud Agents / Usage; подождать, не чистить `jobs.json` в цикле |
 | Агент не стартует, только `needs-plan` | Добавьте `feature` или `bug` |
-| Метка не ставится, label 404/422 | Создайте `ready-for-dev`, `needs-human`, `in-dev`, `in-qa` в репо |
+| Метка не ставится, label 404/422 | Создайте `ready-for-dev`, `needs-human`, `in-dev`, `in-qa`, `qa-in-progress`, `qa-passed` в репо |
 | Повторно не берёт issue | Так задумано, если job уже есть; сброс `jobs.json` |
 | Issue с `feature`+`needs-plan` «не подхватывается» | Старый баг: фильтр `since`. Нужна версия без `since` + пересборка compose. Не обязательно комментировать issue |
 | `agentId` пустой, сразу `cursor run failed` | Смотреть текст `Ошибка:` в комментарии issue или `exec cat /data/jobs.json` |

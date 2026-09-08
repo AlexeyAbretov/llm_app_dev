@@ -2,7 +2,7 @@ import type { Role } from "./types.js";
 
 export type AnalystDecision = "ready-for-dev" | "needs-human";
 export type DeveloperDecision = "in-qa" | "needs-human";
-export type TesterDecision = "in-qa" | "needs-human";
+export type TesterDecision = "in-qa" | "qa-passed" | "needs-human";
 
 export function roleForLabels(labels: string[]): Role | null {
   if (labels.includes("needs-human")) {
@@ -22,7 +22,12 @@ export function roleForLabels(labels: string[]): Role | null {
   ) {
     return "developer";
   }
-  if (labels.includes("in-qa") && !labels.includes("ready-for-release")) {
+  if (
+    labels.includes("in-qa") &&
+    !labels.includes("qa-in-progress") &&
+    !labels.includes("qa-passed") &&
+    !labels.includes("ready-for-release")
+  ) {
     return "tester";
   }
   return null;
@@ -64,18 +69,28 @@ export function decideDeveloperOutcome(
 export function decideTesterOutcome(
   runStatus: "finished" | "error" | "startup_error",
   resultText: string | null,
+  bugIssues: number[] | null,
 ): TesterDecision {
   if (runStatus !== "finished") {
     return "needs-human";
   }
-  const marker = resultText?.match(/PIPELINE_LABELS:\s*(needs-human|in-qa)/i);
-  if (marker) {
-    return marker[1].toLowerCase() as TesterDecision;
-  }
-  if (resultText && /needs-human/i.test(resultText)) {
+  const marker = resultText?.match(
+    /^PIPELINE_LABELS:\s*(needs-human|in-qa|qa-passed)\s*$/im,
+  );
+  if (!marker || bugIssues === null) {
     return "needs-human";
   }
-  return "in-qa";
+  const requested = marker[1].toLowerCase() as TesterDecision;
+  if (requested === "needs-human") {
+    return "needs-human";
+  }
+  if (bugIssues.length === 0 && requested === "qa-passed") {
+    return "qa-passed";
+  }
+  if (bugIssues.length > 0 && requested === "in-qa") {
+    return "in-qa";
+  }
+  return "needs-human";
 }
 
 export function testerBugIssues(resultText: string | null): number[] | null {

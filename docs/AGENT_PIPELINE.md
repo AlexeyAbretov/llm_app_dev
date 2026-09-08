@@ -54,7 +54,9 @@ Git — **только GitHub** (`origin`). Локальная Gitea не исп
 | `needs-plan` | Ждёт аналитика |
 | `ready-for-dev` | План есть, можно кодить |
 | `in-dev` | Разработчик работает |
-| `in-qa` | Есть PR, идёт проверка |
+| `in-qa` | Есть PR, ждёт QA или исправления найденных дефектов |
+| `qa-in-progress` | Тестировщик проверяет PR |
+| `qa-passed` | QA пройден: дефектов нет, можно готовить релиз |
 | `ready-for-release` | RM собрал пакет, ждёт апрув |
 | `release-approved` | Человек разрешил merge/tag/publish |
 | `deployed` | Локальный деплой успешен |
@@ -67,7 +69,7 @@ Git — **только GitHub** (`origin`). Локальная Gitea не исп
 
 Старт разработчика: `bug` или `feature` **и** `ready-for-dev`, нет открытого PR `Fixes #N` (или ветки `issue/<n>-…`). При старте оркестратор ставит `in-dev`. После PR: снимает `ready-for-dev` и `in-dev`, ставит `in-qa`. Если агент упал или PR нет — `needs-human`. Если PR уже открыт, агент не стартует, только метка `in-qa`.
 
-Старт тестировщика: `bug` или `feature` **и** `in-qa`, есть открытый PR `Fixes #N`. Облачный агент ревьюит ветку PR и возвращает номера созданных дефектов в `PIPELINE_BUG_ISSUES`. Оркестратор ставит им `bug` + `needs-plan`, после чего их подхватывает аналитик. Успех: `in-qa` остаётся (merge делает человек). Ошибка Cursor, отсутствие корректного маркера, ошибка маркировки дочернего issue или `PIPELINE_LABELS: needs-human` → снимается `in-qa`, ставится `needs-human`. CI на PR: GitHub Actions job `ci`; required check на `main` включается ruleset вручную.
+Старт тестировщика: `bug` или `feature` **и** `in-qa`, есть открытый PR `Fixes #N`. Перед запуском: `in-qa` → `qa-in-progress`. Агент возвращает номера дефектов в `PIPELINE_BUG_ISSUES`. Если дефектов нет: `qa-in-progress` → `qa-passed`. Если дефекты есть: оркестратор ставит им `bug` + `needs-plan`, а родителя возвращает в `in-qa`. Ошибка Cursor, протокола или маркировки → `needs-human`. Только `qa-passed` допускается к P6. CI на PR: GitHub Actions job `ci`; required check на `main` включается ruleset вручную.
 
 
 ## 4. Апрув релиза (как RM сообщает человеку)

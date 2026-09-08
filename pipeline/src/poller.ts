@@ -108,24 +108,18 @@ async function applyDeveloperLabels(
 async function applyTesterLabels(
   github: GitHubClient,
   issue: number,
-  decision: "in-qa" | "needs-human",
+  decision: "in-qa" | "qa-passed" | "needs-human",
 ): Promise<void> {
-  if (decision === "in-qa") {
-    return;
-  }
   await github.removeIssueLabel(issue, "in-qa");
-  await github.addIssueLabels(issue, ["needs-human"]);
+  await github.removeIssueLabel(issue, "qa-in-progress");
+  await github.addIssueLabels(issue, [decision]);
 }
 
 async function labelTesterBugs(
   github: GitHubClient,
   parentIssue: number,
-  resultText: string | null,
+  bugIssues: number[],
 ): Promise<number[]> {
-  const bugIssues = testerBugIssues(resultText);
-  if (bugIssues === null) {
-    throw new Error("tester result has no PIPELINE_BUG_ISSUES marker");
-  }
   const children = bugIssues.filter((number) => number !== parentIssue);
   if (children.length !== bugIssues.length) {
     throw new Error("tester marked the parent issue as a child bug");
@@ -202,6 +196,25 @@ async function handleIssue(
       jobLog(logger, fields, "labels: +in-dev");
     } catch (err) {
       logger.error({ err, issue: issue.number }, "github labels failed");
+    }
+  }
+  if (role === "tester") {
+    try {
+      await github.removeIssueLabel(issue.number, "in-qa");
+      await github.addIssueLabels(issue.number, ["qa-in-progress"]);
+      jobLog(logger, fields, "labels: -in-qa +qa-in-progress");
+    } catch (err) {
+      store.update(job.id, {
+        status: "startup_error",
+        error: "failed to set qa-in-progress",
+      });
+      logger.error({ err, issue: issue.number }, "github QA labels failed");
+      try {
+        await applyTesterLabels(github, issue.number, "needs-human");
+      } catch (labelErr) {
+        logger.error({ err: labelErr, issue: issue.number }, "github fallback labels failed");
+      }
+      return;
     }
   }
   jobLog(logger, { ...fields }, "cursor agent starting");
@@ -297,10 +310,15 @@ async function handleIssue(
   }
 
   if (role === "tester") {
-    let testerDecision = decideTesterOutcome(outcome.status, outcome.resultText);
+    const bugIssues = testerBugIssues(outcome.resultText);
+    let testerDecision = decideTesterOutcome(
+      outcome.status,
+      outcome.resultText,
+      bugIssues,
+    );
     if (testerDecision === "in-qa") {
       try {
-        const bugs = await labelTesterBugs(github, issue.number, outcome.resultText);
+        const bugs = await labelTesterBugs(github, issue.number, bugIssues ?? []);
         jobLog(
           logger,
           {
@@ -329,9 +347,7 @@ async function handleIssue(
           agentId: outcome.agentId,
           runId: outcome.runId,
         },
-        testerDecision === "needs-human"
-          ? "labels: -in-qa +needs-human"
-          : "labels: keep in-qa",
+        `labels: -qa-in-progress +${testerDecision}`,
       );
     } catch (err) {
       logger.error({ err, issue: issue.number }, "github labels failed");

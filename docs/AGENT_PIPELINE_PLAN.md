@@ -174,7 +174,7 @@ Issue → план → PR → проверка → draft release → апрув 
 ### Шаги
 
 1. GitHub-hosted Actions на PR: lint, `tsc`, unit (когда появятся в каталоге). Required check для `main`.
-2. Облачный тестировщик по `in-qa`: diff, чеклист, баг-issues с тем же milestone.
+2. Облачный тестировщик: `in-qa` → `qa-in-progress`; diff, чеклист, баг-issues с тем же milestone; без дефектов → `qa-passed`, с дефектами → обратно `in-qa`.
 3. E2E Ollama — слот после P7, не в этом этапе.
 4. В промпте: не утверждать E2E без локального прогона.
 
@@ -184,6 +184,7 @@ Issue → план → PR → проверка → draft release → апрув 
 - [ ] Дырявый PR → issue от тестировщика → оркестратор ставит `bug` + `needs-plan`
 - [ ] `in-qa` без открытого PR не стартует облачного тестировщика
 - [ ] Нет `PIPELINE_BUG_ISSUES` / маркировка упала → родительская issue получает `needs-human`
+- [ ] `PIPELINE_BUG_ISSUES: none` + успешный verdict → `qa-passed`
 
 ---
 
