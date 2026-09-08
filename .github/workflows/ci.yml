@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            pipeline/package-lock.json
+      - name: Catalog workspaces
+        run: |
+          npm ci
+          npm run build -w backend
+          npm run build -w frontend
+          npm test --if-present
+      - name: Pipeline tsc
+        working-directory: pipeline
+        run: |
+          npm ci
+          npm run build
+          npm test --if-present

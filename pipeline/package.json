@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "test": "node -e \"console.log('no unit tests yet')\"",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts"
   },

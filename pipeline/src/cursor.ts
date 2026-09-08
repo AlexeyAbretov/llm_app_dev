@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Agent, CursorAgentError } from "@cursor/sdk";
 import type { Config } from "./config.js";
-import type { GitHubIssue } from "./github.js";
+import type { GitHubIssue, GitHubPull } from "./github.js";
 import type { Role } from "./types.js";
 
 export type CursorRunOutcome = {
@@ -17,8 +17,8 @@ function loadPrompt(promptsDir: string, role: Role): string {
   return readFileSync(join(promptsDir, `${role}.md`), "utf8");
 }
 
-function buildMessage(rolePrompt: string, issue: GitHubIssue): string {
-  return [
+function buildMessage(rolePrompt: string, issue: GitHubIssue, pull?: GitHubPull): string {
+  const lines = [
     rolePrompt.trim(),
     "",
     "## Issue",
@@ -27,7 +27,18 @@ function buildMessage(rolePrompt: string, issue: GitHubIssue): string {
     `Заголовок: ${issue.title}`,
     "",
     issue.body?.trim() || "(пустое описание)",
-  ].join("\n");
+  ];
+  if (pull) {
+    lines.push(
+      "",
+      "## Pull request",
+      `Номер: #${pull.number}`,
+      `URL: ${pull.html_url}`,
+      `Ветка: ${pull.headRef}`,
+      `Заголовок: ${pull.title}`,
+    );
+  }
+  return lines.join("\n");
 }
 
 export async function runCloudAgent(
@@ -35,6 +46,7 @@ export async function runCloudAgent(
   role: Role,
   issue: GitHubIssue,
   onStarted: (ids: { agentId: string; runId: string }) => Promise<void>,
+  pull?: GitHubPull,
 ): Promise<CursorRunOutcome> {
   let agentId: string | null = null;
   let runId: string | null = null;
@@ -44,7 +56,12 @@ export async function runCloudAgent(
       apiKey: config.CURSOR_API_KEY,
       model: { id: config.CURSOR_MODEL },
       cloud: {
-        repos: [{ url: config.CURSOR_REPO_URL, startingRef: config.CURSOR_STARTING_REF }],
+        repos: [
+          {
+            url: config.CURSOR_REPO_URL,
+            startingRef: pull?.headRef || config.CURSOR_STARTING_REF,
+          },
+        ],
         skipReviewerRequest: true,
         autoCreatePR: role === "developer",
         metadata: {
@@ -55,7 +72,7 @@ export async function runCloudAgent(
     });
 
     agentId = agent.agentId;
-    const run = await agent.send(buildMessage(loadPrompt(config.PROMPTS_DIR, role), issue));
+    const run = await agent.send(buildMessage(loadPrompt(config.PROMPTS_DIR, role), issue, pull));
     runId = run.id;
     await onStarted({ agentId, runId });
 

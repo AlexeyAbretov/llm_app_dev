@@ -3,7 +3,7 @@
 Контракт (роли, labels): [AGENT_PIPELINE.md](./AGENT_PIPELINE.md).  
 Этапы разработки: [AGENT_PIPELINE_PLAN.md](./AGENT_PIPELINE_PLAN.md).
 
-Сейчас из коробки поднимаются **P0–P4**: оркестратор в Docker, поллинг GitHub, Cursor Cloud **аналитик** и **разработчик** (ветка + PR). Тестировщик, релиз и локальный деплой каталога — ещё не в коде.
+Сейчас из коробки поднимаются **P0–P5**: оркестратор, аналитик, разработчик (PR), тестировщик по `in-qa`, GitHub Actions `ci` на PR. Релиз-менеджер и локальный деплой каталога — ещё не в коде.
 
 Каталог объектов (Ollama, MongoDB) **не нужен**, чтобы запустить оркестратор.
 
@@ -16,6 +16,7 @@
 3. В течение ~30 с оркестратор стартует Cursor Cloud, пишет комментарий с `agentId` / `runId`.
 4. После ответа аналитика: комментарий со статусом, **отдельный комментарий с текстом плана**, снимается `needs-plan`, ставится `ready-for-dev` или `needs-human`.
 5. На `ready-for-dev` стартует разработчик (`in-dev`). После открытого PR `Fixes #N` — `in-qa` (не merge в `main`).
+6. На `in-qa` стартует тестировщик (ревью ветки PR). CI: workflow `.github/workflows/ci.yml`, job `ci`.
 
 Повторный полл ту же пару `(issue, analyst)` не запускает — состояние в volume `jobs.json`.
 
@@ -172,7 +173,11 @@ Volume `llm_app_dev_pipeline_data` хранит `jobs.json` (очередь). `d
 
 Дальше, если стоит `ready-for-dev` и нет открытого PR: `labels: +in-dev` → разработчик → `labels: … +in-qa` или `+needs-human`. Не вешайте `ready-for-dev` сразу на все MVP-issues: разработчик будет кодить каждую.
 
+На `in-qa` с открытым PR: `role: tester` → ревью ветки. Успех: `labels: keep in-qa`. Ошибка: `+needs-human`. Без PR: `skip tester: no open Fixes PR`.
+
 В issue — комментарии пайплайна и (обычно) план от агента. В Cursor Web агенты SDK: Filter → Source → **SDK**.
+
+CI на каждый PR: `.github/workflows/ci.yml`, check **`ci`**. Чтобы красный CI блокировал merge в `main`: GitHub → Settings → Rules → Rulesets (required status check `ci`). Пока ruleset не включён, merge руками всё равно возможен.
 
 ---
 
@@ -192,9 +197,9 @@ docker volume rm llm_app_dev_pipeline_data
 docker compose -f docker-compose.pipeline.yml up -d
 ```
 
-После сброса: аналитик снова при `needs-plan`, разработчик — при `ready-for-dev`. Чтобы не жечь квоту — снимите эти метки.
+После сброса: аналитик снова при `needs-plan`, разработчик — при `ready-for-dev`, тестировщик — при `in-qa`. Чтобы не жечь квоту — снимите эти метки.
 
-Очередь — открытые issue с `needs-plan` или `ready-for-dev` (не фильтр GitHub `since`).
+Очередь — открытые issue с `needs-plan`, `ready-for-dev` или `in-qa` (не фильтр GitHub `since`).
 
 ---
 
@@ -219,7 +224,7 @@ docker compose -f docker-compose.pipeline.yml up -d
 
 ## 10. Что ещё не запускается
 
-- Тестировщик, релиз-менеджер, локальный deployer каталога.
+- Релиз-менеджер, локальный deployer каталога.
 - UI оркестратора.
 - Каталог: `docker compose up` MongoDB / `ollama serve` — отдельный трек, [MVP_PLAN.md](./MVP_PLAN.md).
 

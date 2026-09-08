@@ -1,12 +1,13 @@
 import type { FastifyBaseLogger } from "fastify";
 import type { Config } from "./config.js";
 import { runCloudAgent } from "./cursor.js";
-import { GitHubClient, agentResultComment, jobComment, type GitHubIssue } from "./github.js";
+import { GitHubClient, agentResultComment, jobComment, type GitHubIssue, type GitHubPull } from "./github.js";
 import { JobStore } from "./jobs.js";
 import { jobLog } from "./log.js";
 import {
   decideAnalystOutcome,
   decideDeveloperOutcome,
+  decideTesterOutcome,
   roleForLabels,
 } from "./rules.js";
 import type { Role } from "./types.js";
@@ -69,6 +70,7 @@ async function pollOnce(
       await Promise.all([
         github.listOpenIssuesByLabel("needs-plan"),
         github.listOpenIssuesByLabel("ready-for-dev"),
+        github.listOpenIssuesByLabel("in-qa"),
       ]),
     );
   } catch (err) {
@@ -82,7 +84,7 @@ async function pollOnce(
       jobLog(
         logger,
         { issue: issue.number, role: null, agentId: null, runId: null },
-        "skip: labels do not match analyst or developer trigger",
+        "skip: labels do not match analyst, developer or tester trigger",
       );
       continue;
     }
@@ -100,6 +102,18 @@ async function applyDeveloperLabels(
   await github.removeIssueLabel(issue, "in-dev");
   await github.removeIssueLabel(issue, "ready-for-dev");
   await github.addIssueLabels(issue, [decision]);
+}
+
+async function applyTesterLabels(
+  github: GitHubClient,
+  issue: number,
+  decision: "in-qa" | "needs-human",
+): Promise<void> {
+  if (decision === "in-qa") {
+    return;
+  }
+  await github.removeIssueLabel(issue, "in-qa");
+  await github.addIssueLabels(issue, ["needs-human"]);
 }
 
 async function handleIssue(
@@ -131,6 +145,20 @@ async function handleIssue(
     }
   }
 
+  let testerPull: GitHubPull | undefined;
+  if (role === "tester") {
+    try {
+      testerPull = (await github.findOpenFixPr(issue.number)) ?? undefined;
+    } catch (err) {
+      logger.error({ err, issue: issue.number }, "github pulls failed");
+      return;
+    }
+    if (!testerPull) {
+      jobLog(logger, fields, "skip tester: no open Fixes PR");
+      return;
+    }
+  }
+
   if (store.find(issue.number, role)) {
     jobLog(logger, fields, "skip existing job");
     return;
@@ -158,24 +186,30 @@ async function handleIssue(
   }
   jobLog(logger, { ...fields }, "cursor agent starting");
 
-  const outcome = await runCloudAgent(config, role, issue, async ({ agentId, runId }) => {
-    store.update(job.id, { agentId, runId });
-    jobLog(logger, { issue: issue.number, role, agentId, runId }, "cursor run started");
-    try {
-      await github.commentOnIssue(
-        issue.number,
-        jobComment({
-          jobId: job.id,
-          role,
-          agentId,
-          runId,
-          status: "running",
-        }),
-      );
-    } catch (err) {
-      logger.error({ err, issue: issue.number }, "github comment failed");
-    }
-  });
+  const outcome = await runCloudAgent(
+    config,
+    role,
+    issue,
+    async ({ agentId, runId }) => {
+      store.update(job.id, { agentId, runId });
+      jobLog(logger, { issue: issue.number, role, agentId, runId }, "cursor run started");
+      try {
+        await github.commentOnIssue(
+          issue.number,
+          jobComment({
+            jobId: job.id,
+            role,
+            agentId,
+            runId,
+            status: "running",
+          }),
+        );
+      } catch (err) {
+        logger.error({ err, issue: issue.number }, "github comment failed");
+      }
+    },
+    testerPull,
+  );
 
   const status = outcome.status === "finished" ? "finished" : outcome.status;
   store.update(job.id, {
@@ -236,6 +270,28 @@ async function handleIssue(
           runId: outcome.runId,
         },
         `labels: -ready-for-dev -in-dev +${decision}`,
+      );
+    } catch (err) {
+      logger.error({ err, issue: issue.number }, "github labels failed");
+    }
+  }
+
+  if (role === "tester") {
+    const testerDecision = decideTesterOutcome(outcome.status, outcome.resultText);
+    decision = testerDecision;
+    try {
+      await applyTesterLabels(github, issue.number, testerDecision);
+      jobLog(
+        logger,
+        {
+          issue: issue.number,
+          role,
+          agentId: outcome.agentId,
+          runId: outcome.runId,
+        },
+        testerDecision === "needs-human"
+          ? "labels: -in-qa +needs-human"
+          : "labels: keep in-qa",
       );
     } catch (err) {
       logger.error({ err, issue: issue.number }, "github labels failed");

@@ -2,6 +2,7 @@ import type { Role } from "./types.js";
 
 export type AnalystDecision = "ready-for-dev" | "needs-human";
 export type DeveloperDecision = "in-qa" | "needs-human";
+export type TesterDecision = "in-qa" | "needs-human";
 
 export function roleForLabels(labels: string[]): Role | null {
   if (labels.includes("needs-human")) {
@@ -20,6 +21,9 @@ export function roleForLabels(labels: string[]): Role | null {
     !labels.includes("in-qa")
   ) {
     return "developer";
+  }
+  if (labels.includes("in-qa") && !labels.includes("ready-for-release")) {
+    return "tester";
   }
   return null;
 }
@@ -55,6 +59,23 @@ export function decideDeveloperOutcome(
     return "needs-human";
   }
   return "needs-human";
+}
+
+export function decideTesterOutcome(
+  runStatus: "finished" | "error" | "startup_error",
+  resultText: string | null,
+): TesterDecision {
+  if (runStatus !== "finished") {
+    return "needs-human";
+  }
+  const marker = resultText?.match(/PIPELINE_LABELS:\s*(needs-human|in-qa)/i);
+  if (marker) {
+    return marker[1].toLowerCase() as TesterDecision;
+  }
+  if (resultText && /needs-human/i.test(resultText)) {
+    return "needs-human";
+  }
+  return "in-qa";
 }
 
 export function prFixesIssue(pr: {

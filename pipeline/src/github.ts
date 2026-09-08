@@ -9,6 +9,14 @@ export type GitHubIssue = {
   labels: string[];
 };
 
+export type GitHubPull = {
+  number: number;
+  title: string;
+  body: string | null;
+  html_url: string;
+  headRef: string;
+};
+
 type GitHubIssueRaw = {
   number: number;
   title: string;
@@ -101,7 +109,7 @@ export class GitHubClient {
       }));
   }
 
-  async hasOpenFixPr(issue: number): Promise<boolean> {
+  async findOpenFixPr(issue: number): Promise<GitHubPull | null> {
     const { owner, repo } = this.repoPath();
     const url = new URL(`https://api.github.com/repos/${owner}/${repo}/pulls`);
     url.searchParams.set("state", "open");
@@ -114,16 +122,32 @@ export class GitHubClient {
     }
 
     const items = (await response.json()) as Array<{
+      number: number;
       title: string;
       body: string | null;
+      html_url: string;
       head?: { ref?: string };
     }>;
-    return items.some((pr) =>
+    const found = items.find((pr) =>
       prFixesIssue(
         { title: pr.title, body: pr.body, headRef: pr.head?.ref ?? "" },
         issue,
       ),
     );
+    if (!found) {
+      return null;
+    }
+    return {
+      number: found.number,
+      title: found.title,
+      body: found.body,
+      html_url: found.html_url,
+      headRef: found.head?.ref ?? "",
+    };
+  }
+
+  async hasOpenFixPr(issue: number): Promise<boolean> {
+    return (await this.findOpenFixPr(issue)) !== null;
   }
 
   async commentOnIssue(issue: number, body: string): Promise<void> {

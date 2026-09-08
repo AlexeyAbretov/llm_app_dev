@@ -1,4 +1,4 @@
-export type Role = "analyst" | "developer";
+export type Role = "analyst" | "developer" | "tester";
 
 export type JobStatus = "queued" | "running" | "finished" | "error" | "startup_error";
 

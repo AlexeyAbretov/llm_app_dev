@@ -67,6 +67,8 @@ Git — **только GitHub** (`origin`). Локальная Gitea не исп
 
 Старт разработчика: `bug` или `feature` **и** `ready-for-dev`, нет открытого PR `Fixes #N` (или ветки `issue/<n>-…`). При старте оркестратор ставит `in-dev`. После PR: снимает `ready-for-dev` и `in-dev`, ставит `in-qa`. Если агент упал или PR нет — `needs-human`. Если PR уже открыт, агент не стартует, только метка `in-qa`.
 
+Старт тестировщика: `bug` или `feature` **и** `in-qa`, есть открытый PR `Fixes #N`. Облачный агент ревьюит ветку PR. Успех: `in-qa` остаётся (merge делает человек). Ошибка Cursor или маркер `needs-human` — снимается `in-qa`, ставится `needs-human`. Баги продукта — отдельные issues, не снятие `in-qa`. CI на PR: GitHub Actions job `ci` (`tsc` пайплайна, build заглушек каталога). Required check на `main` включается ruleset вручную.
+
 
 ## 4. Апрув релиза (как RM сообщает человеку)
 
