@@ -4,12 +4,14 @@ import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import { config, uploadDir } from './config.js';
 import { registerCors } from './plugins/cors.js';
+import { registerMongo } from './plugins/mongo.js';
 import { healthRoutes } from './routes/health.js';
 
 async function buildApp() {
   const app = Fastify({ logger: true });
 
   await registerCors(app);
+  await registerMongo(app);
   await app.register(multipart, {
     limits: {
       fileSize: 10 * 1024 * 1024,
