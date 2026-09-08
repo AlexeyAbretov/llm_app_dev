@@ -1,8 +1,11 @@
 import { config as loadEnv } from 'dotenv';
-import { resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
-loadEnv({ path: resolve(process.cwd(), '../.env') });
+const monorepoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..');
+
+loadEnv({ path: resolve(monorepoRoot, '.env') });
 loadEnv();
 
 const envSchema = z.object({
@@ -17,3 +20,8 @@ const envSchema = z.object({
 export type Config = z.infer<typeof envSchema>;
 
 export const config: Config = envSchema.parse(process.env);
+
+/** Абсолютный путь к каталогу загрузок (относительный UPLOAD_DIR — от корня monorepo). */
+export const uploadDir = isAbsolute(config.UPLOAD_DIR)
+  ? config.UPLOAD_DIR
+  : resolve(monorepoRoot, config.UPLOAD_DIR);
