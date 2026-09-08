@@ -45,6 +45,7 @@ ollama serve                   # Ollama (на хосте, нужен GPU)
 npm run dev                    # frontend + backend
 npm run dev:backend            # только backend
 npm run test:catalog-repo -w @llm-app/backend   # проверка CatalogRepository (нужен MongoDB)
+npm run test:ollama -w @llm-app/backend         # Ollama vision/embed + parser (нужен ollama serve; test.jpg для E2E)
 npm run dev:frontend             # только frontend (заглушка до этапа 6)
 docker compose -f docker-compose.pipeline.yml up --build -d   # оркестратор + deployer, см. docs/AGENT_PIPELINE_SETUP.md
 ```
