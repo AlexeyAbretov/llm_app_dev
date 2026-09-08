@@ -10,13 +10,23 @@ type StoreFile = {
 
 export class JobStore {
   private readonly filePath: string;
+  private chain: Promise<unknown> = Promise.resolve();
 
   constructor(dataDir: string) {
     mkdirSync(dataDir, { recursive: true });
     this.filePath = join(dataDir, "jobs.json");
   }
 
-  load(): StoreFile {
+  private synchronized<T>(fn: () => T): Promise<T> {
+    const next = this.chain.then(() => fn());
+    this.chain = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
+  }
+
+  private loadSync(): StoreFile {
     try {
       return JSON.parse(readFileSync(this.filePath, "utf8")) as StoreFile;
     } catch {
@@ -24,97 +34,102 @@ export class JobStore {
     }
   }
 
-  private save(data: StoreFile): void {
+  private saveSync(data: StoreFile): void {
     const tmp = `${this.filePath}.tmp`;
     writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
     renameSync(tmp, this.filePath);
   }
 
-  find(issue: number, role: Role): Job | undefined {
-    return this.load().jobs.find((job) => job.issue === issue && job.role === role);
+  find(issue: number, role: Role): Promise<Job | undefined> {
+    return this.synchronized(() =>
+      this.loadSync().jobs.find((job) => job.issue === issue && job.role === role),
+    );
   }
 
-  create(issue: number, role: Role): Job | null {
-    const data = this.load();
-    if (data.jobs.some((job) => job.issue === issue && job.role === role)) {
-      return null;
-    }
-    const now = new Date().toISOString();
-    const job: Job = {
-      id: randomUUID(),
-      issue,
-      role,
-      status: "queued",
-      agentId: null,
-      runId: null,
-      error: null,
-      decision: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    data.jobs.push(job);
-    this.save(data);
-    return job;
+  create(issue: number, role: Role): Promise<Job | null> {
+    return this.synchronized(() => {
+      const data = this.loadSync();
+      if (data.jobs.some((job) => job.issue === issue && job.role === role)) {
+        return null;
+      }
+      const now = new Date().toISOString();
+      const job: Job = {
+        id: randomUUID(),
+        issue,
+        role,
+        status: "queued",
+        agentId: null,
+        runId: null,
+        error: null,
+        decision: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      data.jobs.push(job);
+      this.saveSync(data);
+      return job;
+    });
   }
 
   /** Drop (issue, role) so a later cycle can run again (QA loop / re-plan). */
-  remove(issue: number, role: Role): boolean {
-    const data = this.load();
-    const next = data.jobs.filter((job) => !(job.issue === issue && job.role === role));
-    if (next.length === data.jobs.length) {
-      return false;
-    }
-    data.jobs = next;
-    this.save(data);
-    return true;
+  async remove(issue: number, role: Role): Promise<boolean> {
+    return this.synchronized(() => {
+      const data = this.loadSync();
+      const next = data.jobs.filter((job) => !(job.issue === issue && job.role === role));
+      if (next.length === data.jobs.length) {
+        return false;
+      }
+      data.jobs = next;
+      this.saveSync(data);
+      return true;
+    });
   }
 
-  removeRoles(issue: number, roles: Role[]): void {
+  async removeRoles(issue: number, roles: Role[]): Promise<void> {
     for (const role of roles) {
-      this.remove(issue, role);
+      await this.remove(issue, role);
     }
   }
 
   update(
     id: string,
     patch: Partial<Pick<Job, "status" | "agentId" | "runId" | "error" | "decision">>,
-  ): Job | undefined {
-    const data = this.load();
-    const job = data.jobs.find((item) => item.id === id);
-    if (!job) {
-      return undefined;
-    }
-    Object.assign(job, patch);
-    if (job.decision === undefined) {
-      job.decision = null;
-    }
-    job.updatedAt = new Date().toISOString();
-    this.save(data);
-    return job;
+  ): Promise<Job | undefined> {
+    return this.synchronized(() => {
+      const data = this.loadSync();
+      const job = data.jobs.find((item) => item.id === id);
+      if (!job) {
+        return undefined;
+      }
+      Object.assign(job, patch);
+      if (job.decision === undefined) {
+        job.decision = null;
+      }
+      job.updatedAt = new Date().toISOString();
+      this.saveSync(data);
+      return job;
+    });
   }
 
-  list(): Job[] {
-    return this.load().jobs.map((job) => ({
-      ...job,
-      decision: job.decision ?? null,
-    }));
+  snapshot(): Promise<{ lastPollAt: string | null; jobs: Job[] }> {
+    return this.synchronized(() => {
+      const data = this.loadSync();
+      return {
+        lastPollAt: data.lastPollAt,
+        jobs: data.jobs.map((job) => ({ ...job, decision: job.decision ?? null })),
+      };
+    });
   }
 
-  snapshot(): { lastPollAt: string | null; jobs: Job[] } {
-    const data = this.load();
-    return {
-      lastPollAt: data.lastPollAt,
-      jobs: data.jobs.map((job) => ({ ...job, decision: job.decision ?? null })),
-    };
+  setLastPollAt(iso: string): Promise<void> {
+    return this.synchronized(() => {
+      const data = this.loadSync();
+      data.lastPollAt = iso;
+      this.saveSync(data);
+    });
   }
 
-  setLastPollAt(iso: string): void {
-    const data = this.load();
-    data.lastPollAt = iso;
-    this.save(data);
-  }
-
-  lastPollAt(): string | null {
-    return this.load().lastPollAt;
+  lastPollAt(): Promise<string | null> {
+    return this.synchronized(() => this.loadSync().lastPollAt);
   }
 }

@@ -11,7 +11,7 @@ export function registerApiRoutes(
   store: JobStore,
 ): void {
   app.get("/api/jobs", async () => {
-    const snap = store.snapshot();
+    const snap = await store.snapshot();
     const jobs = [...snap.jobs]
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map((job) => ({

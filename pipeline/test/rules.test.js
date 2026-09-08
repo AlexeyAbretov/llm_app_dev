@@ -11,8 +11,11 @@ import {
   decideReleaseManagerOutcome,
   decideTesterOutcome,
   fixRoundBlocksDeveloper,
+  groupAnalystIssuesByParent,
+  isChildBugCandidate,
   parseChildBugIssues,
   parseFixRound,
+  parseRelatedParentIssue,
   releaseChangelog,
   releasePrNumbers,
   releaseTag,
@@ -204,6 +207,58 @@ test("child bug markers and open detection", () => {
   assert.equal(childBugStillOpen(["bug", "qa-passed"], "open"), false);
   assert.equal(childBugStillOpen(["bug", "in-qa"], "closed"), false);
   assert.equal(childBugStillOpen(["bug", "needs-human"], "open"), false);
+});
+
+test("parseRelatedParentIssue and child bug candidate", () => {
+  assert.equal(parseRelatedParentIssue("Related to #7\nbug text"), 7);
+  assert.equal(parseRelatedParentIssue("related to #42"), 42);
+  assert.equal(parseRelatedParentIssue("Related to # 7"), null);
+  assert.equal(parseRelatedParentIssue(null), null);
+
+  assert.equal(
+    isChildBugCandidate({
+      labels: ["bug", "needs-plan"],
+      body: "Related to #7",
+    }),
+    true,
+  );
+  assert.equal(
+    isChildBugCandidate({
+      labels: ["feature", "needs-plan"],
+      body: "Related to #7",
+    }),
+    false,
+  );
+  assert.equal(
+    isChildBugCandidate({
+      labels: ["bug", "needs-plan"],
+      body: "no parent link",
+    }),
+    false,
+  );
+});
+
+test("groupAnalystIssuesByParent batches sibling child bugs", () => {
+  const child = (number, parent) => ({
+    number,
+    labels: ["bug", "needs-plan"],
+    body: `Related to #${parent}`,
+  });
+  const standaloneIssue = {
+    number: 34,
+    labels: ["feature", "needs-plan"],
+    body: "новая фича",
+  };
+
+  const batches = groupAnalystIssuesByParent([child(29, 7), child(30, 7), standaloneIssue]);
+  assert.equal(batches.length, 2);
+  const sibling = batches.find((batch) => batch.length === 2);
+  assert.deepEqual(
+    sibling?.map((item) => item.number).sort((a, b) => a - b),
+    [29, 30],
+  );
+  const solo = batches.find((batch) => batch.length === 1);
+  assert.equal(solo?.[0]?.number, 34);
 });
 
 test("milestone due and tag from title", () => {
