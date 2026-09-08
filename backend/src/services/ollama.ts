@@ -49,13 +49,42 @@ async function ollamaFetch(
   return response;
 }
 
-/** Ping Ollama через GET /api/tags. */
+interface OllamaTagsResponse {
+  models?: Array<{ name: string }>;
+}
+
+/** Совпадение по конкретному тегу; `:latest` — явный alias без других тегов семейства. */
+function modelIsAvailable(available: string[], required: string): boolean {
+  if (required.endsWith(':latest')) {
+    const base = required.slice(0, -':latest'.length);
+    return available.some((name) => name === required || name === base);
+  }
+
+  if (required.includes(':')) {
+    return available.includes(required);
+  }
+
+  return available.some((name) => name === required || name === `${required}:latest`);
+}
+
+/** Ping Ollama и проверка наличия vision/embed/translate моделей (GET /api/tags). */
 export async function checkHealth(): Promise<boolean> {
   try {
     const response = await fetch(`${config.OLLAMA_BASE_URL}/api/tags`, {
       signal: AbortSignal.timeout(2000),
     });
-    return response.ok;
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = (await response.json()) as OllamaTagsResponse;
+    const names = data.models?.map((model) => model.name) ?? [];
+
+    return (
+      modelIsAvailable(names, config.OLLAMA_VISION_MODEL) &&
+      modelIsAvailable(names, config.OLLAMA_EMBED_MODEL) &&
+      modelIsAvailable(names, config.OLLAMA_TRANSLATE_MODEL)
+    );
   } catch {
     return false;
   }
