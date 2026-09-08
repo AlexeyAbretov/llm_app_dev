@@ -223,7 +223,7 @@
 ### Проверка
 
 - [x] `curl -F "image=@test.jpg" localhost:3001/api/items` → 202 (или `npm run test:api`)
-- [x] Polling `GET /api/items/:id` → eventually `ready` (локально с Ollama)
+- [ ] Polling `GET /api/items/:id` → eventually `ready` (локально с Ollama)
 - [x] List endpoint возвращает pagination meta
 
 ---
