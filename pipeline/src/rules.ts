@@ -271,6 +271,54 @@ export function upsertChildBugIssuesInBody(body: string | null, bugs: number[]):
   return `${base}\n\n${marker}`;
 }
 
+export function parseRelatedParentIssue(body: string | null): number | null {
+  if (!body) {
+    return null;
+  }
+  const marker = body.match(/Related\s+to\s+#(\d+)/i);
+  if (!marker) {
+    return null;
+  }
+  const value = Number(marker[1]);
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+export function isChildBugCandidate(issue: {
+  labels: string[];
+  body: string | null;
+}): boolean {
+  return (
+    issue.labels.includes("bug") &&
+    issue.labels.includes("needs-plan") &&
+    parseRelatedParentIssue(issue.body) !== null
+  );
+}
+
+/** Группы sibling child bugs (один parent) для параллельного analyst; остальные — по одной issue. */
+export function groupAnalystIssuesByParent<T extends { number: number; labels: string[]; body: string | null }>(
+  issues: T[],
+): T[][] {
+  const siblingByParent = new Map<number, T[]>();
+  const standalone: T[] = [];
+
+  for (const issue of issues) {
+    if (isChildBugCandidate(issue)) {
+      const parent = parseRelatedParentIssue(issue.body)!;
+      const group = siblingByParent.get(parent) ?? [];
+      group.push(issue);
+      siblingByParent.set(parent, group);
+    } else {
+      standalone.push(issue);
+    }
+  }
+
+  const batches: T[][] = [...siblingByParent.values()];
+  for (const issue of standalone) {
+    batches.push([issue]);
+  }
+  return batches;
+}
+
 /** Child is still in the fix pipeline (blocks parent re-QA). */
 export function childBugStillOpen(labels: string[], state: "open" | "closed"): boolean {
   if (state === "closed") {

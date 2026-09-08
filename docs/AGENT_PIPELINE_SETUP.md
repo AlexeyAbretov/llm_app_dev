@@ -202,6 +202,8 @@ Volume `llm_app_dev_pipeline_data` хранит `jobs.json` (очередь). `d
 
 Цикл QA: дочерние bugs → снова аналитик. В теле родителя `<!-- pipeline:child-bugs:… -->`; пока они в пайплайне, tester на родителе ждёт. После их `qa-passed`/закрытия — повторное QA родителя. `fix-round` в теле issue увеличивается при каждом старте разработчика; после 3 — четвёртый старт даёт `needs-human`.
 
+Sibling child bugs (несколько issues с `bug` + `needs-plan` и одним `Related to #parent`) планируются **параллельно** в одном poll-tick оркестратора; в UI `:3010` / `jobs.json` видны несколько running analyst-джобов. Для контекста ветки аналитику передаётся открытый PR родителя (`Fixes #parent`), если он есть.
+
 В issue — комментарии пайплайна и (обычно) план от агента. В Cursor Web агенты SDK: Filter → Source → **SDK**.
 
 CI на каждый PR: `.github/workflows/ci.yml`, check **`ci`**. Чтобы красный CI блокировал merge в `main`: GitHub → Settings → Rules → Rulesets (required status check `ci`). Пока ruleset не включён, merge руками всё равно возможен.

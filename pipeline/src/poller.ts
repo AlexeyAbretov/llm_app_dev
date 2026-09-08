@@ -11,9 +11,11 @@ import {
   decideReleaseManagerOutcome,
   decideTesterOutcome,
   fixRoundBlocksDeveloper,
+  groupAnalystIssuesByParent,
   MAX_FIX_ROUNDS,
   parseChildBugIssues,
   parseFixRound,
+  parseRelatedParentIssue,
   releaseChangelog,
   releasePrNumbers,
   releaseTag,
@@ -91,6 +93,7 @@ async function pollOnce(
     return;
   }
 
+  const work: Array<{ issue: GitHubIssue; role: Role }> = [];
   for (const issue of issues) {
     const role = roleForLabels(issue.labels);
     if (!role) {
@@ -101,10 +104,35 @@ async function pollOnce(
       );
       continue;
     }
+    work.push({ issue, role });
+  }
+
+  const analystIssues = work.filter((item) => item.role === "analyst").map((item) => item.issue);
+  const otherWork = work.filter((item) => item.role !== "analyst");
+
+  for (const batch of groupAnalystIssuesByParent(analystIssues)) {
+    if (batch.length > 1) {
+      jobLog(
+        logger,
+        {
+          issue: batch[0]?.number ?? null,
+          role: "analyst",
+          agentId: null,
+          runId: null,
+        },
+        `parallel analyst dispatch: ${batch.map((issue) => `#${issue.number}`).join(", ")}`,
+      );
+    }
+    await Promise.all(
+      batch.map((issue) => handleIssue(config, logger, store, github, issue, "analyst")),
+    );
+  }
+
+  for (const { issue, role } of otherWork) {
     await handleIssue(config, logger, store, github, issue, role);
   }
 
-  store.setLastPollAt(pollStartedAt);
+  await store.setLastPollAt(pollStartedAt);
 }
 
 async function applyDeveloperLabels(
@@ -139,7 +167,7 @@ async function labelTesterBugs(
   }
   for (const issue of children) {
     // Новый круг плана: сбросить джобы и state-метки, только bug + needs-plan.
-    store.removeRoles(issue, ["analyst", "developer", "tester", "release-manager"]);
+    await store.removeRoles(issue, ["analyst", "developer", "tester", "release-manager"]);
     await github.removeIssueLabel(issue, "ready-for-dev");
     await github.removeIssueLabel(issue, "in-dev");
     await github.removeIssueLabel(issue, "in-qa");
@@ -247,6 +275,16 @@ async function handleIssue(
       return;
     }
   }
+  if (role === "analyst") {
+    const parent = parseRelatedParentIssue(issue.body);
+    if (parent) {
+      try {
+        linkedPull = (await github.findOpenFixPr(parent)) ?? undefined;
+      } catch (err) {
+        logger.error({ err, issue: issue.number, parent }, "github parent PR lookup failed");
+      }
+    }
+  }
 
   if (role === "tester") {
     try {
@@ -259,8 +297,8 @@ async function handleIssue(
         );
         return;
       }
-      if (parseChildBugIssues(issue.body).length > 0 && store.find(issue.number, "tester")) {
-        store.remove(issue.number, "tester");
+      if (parseChildBugIssues(issue.body).length > 0 && (await store.find(issue.number, "tester"))) {
+        await store.remove(issue.number, "tester");
         jobLog(logger, fields, "cleared tester job for re-QA after child bugs");
       }
     } catch (err) {
@@ -269,7 +307,7 @@ async function handleIssue(
     }
   }
 
-  if (store.find(issue.number, role)) {
+  if (await store.find(issue.number, role)) {
     jobLog(logger, fields, "skip existing job");
     return;
   }
@@ -279,13 +317,13 @@ async function handleIssue(
     return;
   }
 
-  const job = store.create(issue.number, role);
+  const job = await store.create(issue.number, role);
   if (!job) {
     jobLog(logger, fields, "skip existing job");
     return;
   }
 
-  store.update(job.id, { status: "running" });
+  await store.update(job.id, { status: "running" });
   if (role === "developer") {
     const nextRound = (parseFixRound(issue.body) ?? 0) + 1;
     try {
@@ -294,7 +332,7 @@ async function handleIssue(
       issue = { ...issue, body };
       jobLog(logger, fields, `fix-round: ${nextRound}`);
     } catch (err) {
-      store.update(job.id, { status: "startup_error", error: "failed to set fix-round" });
+      await store.update(job.id, { status: "startup_error", error: "failed to set fix-round" });
       logger.error({ err, issue: issue.number }, "fix-round update failed");
       try {
         await applyDeveloperLabels(github, issue.number, "needs-human");
@@ -316,7 +354,7 @@ async function handleIssue(
       await github.addIssueLabels(issue.number, ["qa-in-progress"]);
       jobLog(logger, fields, "labels: -in-qa +qa-in-progress");
     } catch (err) {
-      store.update(job.id, {
+      await store.update(job.id, {
         status: "startup_error",
         error: "failed to set qa-in-progress",
       });
@@ -336,7 +374,7 @@ async function handleIssue(
     role,
     issue,
     async ({ agentId, runId }) => {
-      store.update(job.id, { agentId, runId });
+      await store.update(job.id, { agentId, runId });
       jobLog(logger, { issue: issue.number, role, agentId, runId }, "cursor run started");
       try {
         await github.commentOnIssue(
@@ -357,7 +395,7 @@ async function handleIssue(
   );
 
   const status = outcome.status === "finished" ? "finished" : outcome.status;
-  store.update(job.id, {
+  await store.update(job.id, {
     status,
     agentId: outcome.agentId,
     runId: outcome.runId,
@@ -522,7 +560,7 @@ async function handleIssue(
   }
 
   if (decision) {
-    store.update(job.id, { decision });
+    await store.update(job.id, { decision });
   }
 
   try {
