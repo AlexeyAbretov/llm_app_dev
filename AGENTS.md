@@ -43,6 +43,7 @@ ollama pull qwen2.5:0.5b       # перевод поискового запро�
 ```
 
 ```bash
+npm test                         # CI-safe: test:ollama-health (мок fetch, без Ollama)
 docker compose up -d mongo     # MongoDB
 ollama serve                   # Ollama (на хосте, нужен GPU)
 npm run dev                    # frontend + backend
