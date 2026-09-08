@@ -90,6 +90,27 @@ export class CatalogRepository {
     return doc ? toCatalogItem(doc) : null;
   }
 
+  /** Успешное завершение пайплайна: ready + сброс error. */
+  async markReady(
+    id: string,
+    partial: Omit<UpdateCatalogItemData, 'status' | 'error'>,
+  ): Promise<CatalogItem | null> {
+    if (!ObjectId.isValid(id)) {
+      return null;
+    }
+
+    const doc = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      {
+        $set: { ...partial, status: 'ready', updatedAt: new Date() },
+        $unset: { error: '' },
+      },
+      { returnDocument: 'after' },
+    );
+
+    return doc ? toCatalogItem(doc) : null;
+  }
+
   async findAllWithEmbeddings(): Promise<CatalogItem[]> {
     const docs = await this.collection
       .find({

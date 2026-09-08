@@ -193,10 +193,10 @@
 
 ### Проверка
 
-- [ ] Upload test image через pipeline → doc в MongoDB со status `ready`
-- [ ] При невалидном файле → status `failed`
-- [ ] Retry срабатывает при битом JSON от LLM
-- [ ] В логах видны переходы между узлами
+- [ ] Upload test image через pipeline → doc в MongoDB со status `ready` (локально: `test:pipeline` + Ollama + test.jpg)
+- [x] При невалидном файле → status `failed`
+- [x] Retry срабатывает при битом JSON от LLM (mock в `test:pipeline`)
+- [x] В логах видны переходы между узлами
 
 ---
 

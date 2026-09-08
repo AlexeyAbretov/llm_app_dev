@@ -25,6 +25,16 @@ function extractJsonObject(raw: string): string {
   return match[0];
 }
 
+function slugifyTag(tag: string): string {
+  return tag
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zа-яё0-9-]+/gu, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 function normalizeTags(parsed: unknown): unknown {
   if (typeof parsed !== 'object' || parsed === null || !('tags' in parsed)) {
     return parsed;
@@ -37,7 +47,7 @@ function normalizeTags(parsed: unknown): unknown {
 
   return {
     ...record,
-    tags: record.tags.map((tag) => String(tag).trim().toLowerCase()),
+    tags: record.tags.map((tag) => slugifyTag(String(tag))).filter(Boolean),
   };
 }
 
