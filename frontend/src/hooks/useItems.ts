@@ -7,5 +7,6 @@ export function useItems(page: number) {
   return useQuery({
     queryKey: ['items', page],
     queryFn: () => listItems(page, PAGE_SIZE),
+    staleTime: 0,
   });
 }
