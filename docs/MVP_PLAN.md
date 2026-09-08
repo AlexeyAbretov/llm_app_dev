@@ -255,9 +255,9 @@
 
 ### Проверка
 
-- [ ] `npm run dev:frontend` → app на localhost:5173
-- [ ] Навигация между 4 страницами
-- [ ] Health endpoint доступен через proxy
+- [x] `npm run dev:frontend` → app на localhost:5173
+- [x] Навигация между 4 страницами
+- [x] Health endpoint доступен через proxy
 
 ---
 
