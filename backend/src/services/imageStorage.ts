@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { uploadDir } from '../config.js';
 
@@ -42,6 +42,7 @@ export async function save(input: SaveImageInput): Promise<SavedImage> {
   const ref = `${randomUUID()}${extension}`;
   const absolutePath = join(uploadDir, ref);
 
+  await mkdir(uploadDir, { recursive: true });
   await writeFile(absolutePath, input.buffer);
 
   return {
