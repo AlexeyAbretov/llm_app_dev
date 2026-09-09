@@ -5,14 +5,14 @@ alwaysApply: true
 
 # Каталог объектов — ключевые правила
 
-Полная документация: `docs/CONSTITUTION.md`, план каталога: `docs/MVP_PLAN.md`.
+Полная документация: `docs/CONSTITUTION.md`. План этапов 0–11: `docs/MVP_PLAN.md` (**заморожен**, не редактировать).
 
 ## Стек (не менять без обсуждения)
 
 - Frontend: React 18 + **TypeScript** + Vite + Tailwind + TanStack Query
 - Backend: Node.js + **Fastify** + **LangGraph.js** + Zod
 - AI: **Ollama** local — vision `qwen2.5vl:7b` (Ollama ≥ 0.7.0), embed `nomic-embed-text`, translate `qwen2.5:0.5b`
-- DB: **MongoDB 7** local
+- DB: **MongoDB 7** local; фото в **GridFS**
 - Monorepo: `frontend/`, `backend/`, `shared/`
 
 ## Принципы
@@ -23,10 +23,11 @@ alwaysApply: true
 - Vision и translate запроса **последовательно** (RTX 4060 8 GB)
 - Обработка **async** — статусы pending → processing → ready | failed
 
-## MVP scope
+## Scope 1.0
 
-В scope: upload, LangGraph pipeline, catalog, text search (hybrid).
+В scope: upload, LangGraph pipeline, catalog, text search (hybrid), GridFS.
 Вне scope: photo search, auth, batch upload, edit LLM fields.
+Не добавлять фичи из backlog без явного запроса.
 
 ## Структура кода
 
@@ -38,8 +39,7 @@ alwaysApply: true
 
 ## При реализации
 
-- Каталог: этапы `docs/MVP_PLAN.md`, ветки `stage/N-...`
 - Merge в `main` только после подтверждения (см. `git-workflow.mdc`)
-- Один этап = одна ветка; внутри ветки — один или несколько коммитов
+- Одна задача = одна ветка `feat/` / `fix/` / `issue/N-…`
 - Минимальный diff, без over-engineering
-- Не добавлять фичи из backlog без явного запроса
+- `docs/MVP_PLAN.md` не трогать

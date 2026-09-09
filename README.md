@@ -2,6 +2,8 @@
 
 Локальное веб-приложение: загрузка фото → LLM генерирует заголовок и описание → MongoDB → текстовый поиск по каталогу.
 
+**Версия 1.0** — см. [CHANGELOG.md](CHANGELOG.md). План этапов [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md) заморожен.
+
 ## Требования
 
 | Компонент | Версия / примечание |
@@ -47,7 +49,7 @@ curl -s http://localhost:3001/api/health | jq
 
 `ollama: true` — Ollama отвечает и модели `qwen2.5vl:7b`, `nomic-embed-text` и `qwen2.5:0.5b` скачаны.
 
-## Демо-сценарий MVP
+## Демо-сценарий 1.0
 
 1. **Загрузить** — страница «Загрузить», drag-and-drop фото (JPEG/PNG/WebP, до 10 МБ)
 2. **Дождаться LLM** — статус `pending` → `processing` → `ready` (обычно ≤ 60 с)
@@ -75,6 +77,7 @@ React + TypeScript · Node.js + Fastify + LangGraph.js · Ollama · MongoDB
 
 ## Документация
 
-- [Конституция проекта](docs/CONSTITUTION.md) — принципы, стек, критерии готовности MVP (§9)
-- [План MVP](docs/MVP_PLAN.md) — этапы каталога (`stage/N-…`)
+- [Конституция проекта](docs/CONSTITUTION.md) — принципы, стек, критерии готовности (§9)
+- [CHANGELOG.md](CHANGELOG.md) — релизы
+- [План MVP](docs/MVP_PLAN.md) — исторический план этапов 0–11 (заморожен, не изменять)
 - [AGENTS.md](AGENTS.md) — команды и инструкции для AI-агента

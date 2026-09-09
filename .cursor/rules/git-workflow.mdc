@@ -1,5 +1,5 @@
 ---
-description: Git-workflow — один этап MVP = одна ветка, merge после подтверждения
+description: Git-workflow — ветка на задачу, merge после подтверждения; MVP_PLAN заморожен
 alwaysApply: true
 ---
 
@@ -10,23 +10,24 @@ alwaysApply: true
 ## Правила
 
 - **`main`** — только подтверждённый код
-- **Один этап = одна ветка** `stage/N-short-name`
+- **Одна задача = одна ветка** `feat/…`, `fix/…`, `issue/N-short-name`
 - **Не мержить в `main`** без явного подтверждения пользователя
-- **Новый этап** — ветка от актуального `main` (после merge предыдущего)
+- **Не создавать** ветки `stage/N-…` — MVP завершён (релиз 1.0)
+- **Не изменять** `docs/MVP_PLAN.md` — заморожен
 
-## Перед началом этапа
+## Перед началом задачи
 
 ```bash
 git checkout main
 git pull origin main
-git checkout -b stage/N-short-name
+git checkout -b feat/short-name
 ```
 
-## После завершения этапа
+## После завершения
 
-1. Прогнать чеклист «Проверка» из `docs/MVP_PLAN.md`
+1. Прогнать релевантные тесты / проверку из CONSTITUTION.md §9 (локальный E2E — если задача его касается)
 2. `git push -u origin <имя-ветки>`
-3. Сообщить пользователю: этап готов, жду подтверждения для merge
+3. Сообщить пользователю: готово, жду подтверждения для merge
 4. Merge **только** по команде: «мержим», «этап готов», «ok»
 
 ## Merge (после подтверждения)
@@ -37,7 +38,3 @@ git pull origin main
 git merge <имя-ветки>
 git push origin main
 ```
-
-## Имена веток
-
-См. `docs/MVP_PLAN.md` и `docs/CONSTITUTION.md` §3.2.

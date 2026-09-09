@@ -1,0 +1,14 @@
+---
+description: docs/MVP_PLAN.md заморожен в релизе 1.0 — не редактировать
+globs: docs/MVP_PLAN.md
+alwaysApply: false
+---
+
+# MVP Plan заморожен
+
+`docs/MVP_PLAN.md` — исторический план этапов 0–11 релиза **1.0**.
+
+- Не редактировать файл
+- Не добавлять этапы
+- Не отмечать и не снимать чеклисты «Проверка»
+- Новые фичи и баги — GitHub issues и `docs/CONSTITUTION.md`

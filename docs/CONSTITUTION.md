@@ -1,6 +1,6 @@
 # Конституция проекта: Каталог объектов
 
-> Версия: 1.6 · Дата: 2026-09-09
+> Версия: 1.7 · Дата: 2026-09-09 · Продукт: **1.0**
 
 ## 1. Миссия
 
@@ -13,90 +13,79 @@
 | P1 | **Локальность продукта** | Каталог, фото, MongoDB, Ollama и GPU работают на машине разработчика. Нет облачных LLM API для продукта. GitHub допустим для репозитория, issues и PR. |
 | P2 | **Русский язык** | UI, карточки (`title`, `description`, `tags`) и промпты vision — русский. Исключение: скрытое `embedText` и перевод поискового запроса — английский (nomic); в API и UI не отдаём. |
 | P3 | **JavaScript end-to-end** | Backend и orchestration на Node.js. Python не используем. |
-| P4 | **Простота MVP** | Сначала работающий happy path. Фичи вне scope MVP — в backlog, не в код. |
+| P4 | **Простота** | Happy path и минимальный diff. Фичи вне scope 1.0 — в backlog, не в код. MVP завершён (релиз 1.0). |
 | P5 | **Async-by-default** | Vision LLM медленная (~10–30 с). Обработка асинхронная, UI показывает статус. |
 | P6 | **Один GPU, последовательно** | RTX 4060 8 GB — vision и перевод запроса не параллелить (mutex). |
 | P7 | **Типобезопасность** | TypeScript на фронте. Общие типы в `shared/`. Backend — TypeScript или JSDoc + Zod. |
 | P8 | **Минимальный diff** | Каждый PR/шаг решает одну задачу. Без over-engineering. |
-| P9 | **Ветка на этап** | Один этап MVP — одна ветка `stage/N-…`. Merge в `main` только после явного подтверждения пользователя. |
+| P9 | **Подтверждённый merge** | Одна задача — одна ветка. Merge в `main` только после явного подтверждения пользователя. [MVP_PLAN.md](./MVP_PLAN.md) заморожен — не редактировать. |
 
 ## 3. Git-workflow
 
 ### 3.1 Основные правила
 
 - **`main`** — стабильная ветка; только проверенный и подтверждённый код
-- **Один этап = одна ветка** — `stage/N-…`
+- **Одна задача = одна ветка** — `feat/…`, `fix/…`, `issue/N-…`
 - **Merge только после подтверждения** — агент/разработчик не мержит в `main` без явного «ок» от пользователя
-- **Следующий этап** — новая ветка от актуального `main` (после merge предыдущего)
+- **Не создавать** ветки `stage/N-…` — MVP завершён (релиз 1.0)
+- **[MVP_PLAN.md](./MVP_PLAN.md) заморожен** — не редактировать
+
+Исторические ветки этапов 0–11: см. замороженный [MVP_PLAN.md](./MVP_PLAN.md).
 
 ### 3.2 Именование веток
 
-Каталог (MVP продукта):
+После релиза 1.0:
 
 ```
-stage/<номер>-<краткое-имя>
+feat/<краткое-имя>
+fix/<краткое-имя>
+issue/<номер>-<краткое-имя>
 ```
 
-| Этап | Ветка |
-|------|-------|
-| 0 | `stage/0-infrastructure` |
-| 1 | `stage/1-backend-skeleton` |
-| 2 | `stage/2-mongodb` |
-| 3 | `stage/3-ollama-services` |
-| 4 | `stage/4-langgraph-pipeline` |
-| 5 | `stage/5-api-endpoints` |
-| 6 | `stage/6-frontend-skeleton` |
-| 7 | `stage/7-upload-polling` |
-| 8 | `stage/8-catalog-detail` |
-| 9 | `stage/9-search` |
-| 10 | `stage/10-polish` |
-
-### 3.3 Жизненный цикл этапа
+### 3.3 Жизненный цикл задачи
 
 ```
-main ──► stage/N-... ──► коммиты ──► push ──► проверка
-                                                          │
-                                                подтверждение пользователя
-                                                          │
-                                                          ▼
-                                                merge в main ──► push main
+main ──► feat/… ──► коммиты ──► push ──► проверка
+                                              │
+                                    подтверждение пользователя
+                                              │
+                                              ▼
+                                    merge в main ──► push main
 ```
 
 ### 3.4 Команды (шаблон)
 
 ```bash
-# Начало этапа N
+# Начало задачи
 git checkout main
 git pull origin main
-git checkout -b stage/N-short-name
+git checkout -b feat/short-name
 
-# Работа на этапе — один или несколько коммитов
+# Работа — один или несколько коммитов
 git add .
-git commit -m "feat(stage-N): описание"
-git push -u origin stage/N-short-name
+git commit -m "feat: описание"
+git push -u origin feat/short-name
 
 # После подтверждения пользователя
 git checkout main
 git pull origin main
-git merge stage/N-short-name
+git merge feat/short-name
 git push origin main
-
-# Опционально: удалить ветку этапа
-git branch -d stage/N-short-name
-git push origin --delete stage/N-short-name
 ```
 
 ### 3.5 Критерий merge
 
 Merge в `main` допустим когда:
 
-1. Все пункты **«Проверка»** текущего этапа из [MVP_PLAN.md](./MVP_PLAN.md) выполнены
-2. Пользователь явно подтвердил: «мержим», «этап готов», «ok» и т.п.
+1. Задача сделана в минимальном diff; релевантные тесты проходят
+2. Пользователь явно подтвердил: «мержим», «ok» и т.п.
 3. Нет незакоммиченных изменений
 
-## 4. Scope MVP
+## 4. Scope продукта 1.0
 
-### В scope
+План этапов заморожен: [MVP_PLAN.md](./MVP_PLAN.md) не изменять.
+
+### В scope (1.0)
 
 - Загрузка одного изображения (JPEG, PNG, WebP)
 - LangGraph.js-пайплайн: validate → save → vision → embed → save DB
@@ -105,8 +94,9 @@ Merge в `main` допустим когда:
 - Текстовый поиск: keyword (`$text`) + semantic (cosine similarity по embedding)
 - Async-статусы: `pending` → `processing` → `ready` | `failed`
 - Docker Compose: MongoDB + Ollama (опционально для dev)
+- Фото в GridFS (MongoDB volume); legacy `disk` — только миграция
 
-### Вне scope MVP (backlog)
+### Вне scope 1.0 (backlog)
 
 - Поиск по загруженному фото
 - Batch upload
@@ -134,7 +124,7 @@ Merge в `main` допустим когда:
 │             Translate: qwen2.5:0.5b (поиск)     │
 ├─────────────────────────────────────────────────┤
 │  DB:        MongoDB 7 (local, порт 27017)       │
-│  Files:     GridFS или uploads/ на диске        │
+│  Files:     GridFS (bucket catalog_images)      │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -185,7 +175,7 @@ Merge в `main` допустим когда:
 |------------|---------------|---------------------------|
 | **MongoDB 7** | Document model идеален для catalog items (вложенный image, tags, embedding); `$text` search из коробки; локальный запуск одной командой | PostgreSQL + pgvector — мощнее для relational, но schema migrations тяжелее для MVP; SQLite — нет `$text` на arrays, слабее для catalog; JSON-файлы — нет индексов, нет search |
 | **Embedding в документе** | Простота: один запрос → все данные; cosine в Node достаточно до ~10k объектов | Отдельный vector DB (Qdrant, Chroma) — лишний сервис для MVP; MongoDB Atlas Vector Search — облако, нарушает P1 |
-| **uploads/ на диске** | Простейший вариант для MVP; Fastify static раздаёт файлы; не нужен GridFS driver | GridFS — оправдан при >16 MB файлах или репликации; S3/MinIO — overkill для local single-user |
+| **GridFS (MongoDB)** | Фото живут в том же Docker volume, что и БД; переживают `compose down`/`up`; нет `uploads/` в репо | Disk `uploads/` — теряется вне volume; S3/MinIO — overkill для local single-user |
 | **Docker Compose (только MongoDB)** | Воспроизводимое окружение БД; один `docker compose up`; volume для persistence | MongoDB installed locally — работает, но сложнее onboarding; cloud MongoDB — нарушает P1 |
 
 #### Инфраструктура проекта
@@ -222,10 +212,10 @@ llm_app_dev/
 
 ```
 User → POST /api/items (multipart)
-     → save file + create doc (status: pending)
+     → save file (GridFS) + create doc (status: pending)
      → enqueue LangGraph job (status: processing)
          → validate image
-         → Ollama vision → { title, description, tags, embedText }
+         → Ollama vision (из fileBuffer) → { title, description, tags, embedText }
          → Ollama embed(embedText) → float[]
          → update doc (status: ready)
      ← 202 Accepted { id, status }
@@ -251,8 +241,8 @@ User → GET /api/search?q=красная ваза
 | Узел | Вход | Выход | Retry |
 |------|------|-------|-------|
 | `validate` | file buffer | ok / error | — |
-| `saveImage` | buffer | imagePath, imageId | — |
-| `visionLLM` | imagePath | title, description, tags, embedText | 2× |
+| `saveImage` | buffer | imageId (GridFS) | — |
+| `visionLLM` | fileBuffer | title, description, tags, embedText | 2× |
 | `parseResponse` | raw LLM text | validated JSON | 1× |
 | `embed` | embedText (EN) | float[] | 2× |
 | `saveDB` | all fields | mongoId | — |
@@ -290,12 +280,13 @@ interface CatalogItem {
 - `{ status: 1, createdAt: -1 }`
 - `{ createdAt: -1 }`
 
-## 7. API контракт (MVP)
+## 7. API контракт (1.0)
 
 | Method | Path | Описание |
 |--------|------|----------|
 | `POST` | `/api/items` | Upload image → `{ id, status }` |
 | `GET` | `/api/items/:id` | Получить объект |
+| `GET` | `/api/items/:id/image` | Stream фото (GridFS или legacy disk) |
 | `GET` | `/api/items` | Список (`?page=1&limit=20`) |
 | `GET` | `/api/search` | Поиск (`?q=...&limit=20`) |
 | `GET` | `/api/health` | Healthcheck (mongo + ollama) |
@@ -325,7 +316,9 @@ tags: 3–7 существительных в нижнем регистре.
 Ответ: только JSON, без markdown.
 ```
 
-## 9. Критерии готовности MVP
+## 9. Критерии готовности (релиз 1.0)
+
+Продукт **1.0** выпущен (этапы 0–11 в `main`). Пункты ниже — локальная проверка оператора (MongoDB + Ollama + demo). Не отмечать `[x]` без фактического прогона.
 
 - [ ] `docker compose up` поднимает MongoDB
 - [ ] Ollama с `qwen2.5vl:7b`, `nomic-embed-text` и `qwen2.5:0.5b` отвечает на `/api/health` (health проверяет Ollama; translate — для поиска)
@@ -340,13 +333,12 @@ tags: 3–7 существительных в нижнем регистре.
 | Решение | Почему отложено |
 |---------|-----------------|
 | Vector index в MongoDB | Cosine в Node достаточно до ~10k объектов |
-| Очередь (Bull/Redis) | In-memory queue достаточно для MVP |
+| Очередь (Bull/Redis) | In-memory queue достаточно для 1.0 |
 | Auth | Single-user local app |
-| Image resize | Добавим если LLM будет падать на больших файлах |
 | Structured output API Ollama | JSON-парсинг с retry проще для старта |
 
 ## 11. Ссылки
 
-- [MVP Plan](./MVP_PLAN.md) — пошаговый план каталога
+- [MVP Plan](./MVP_PLAN.md) — замороженный исторический план этапов 0–11 (не изменять)
 - [LangGraph.js](https://langchain-ai.github.io/langgraphjs/)
 - [Ollama API](https://github.com/ollama/ollama/blob/main/docs/api.md)
