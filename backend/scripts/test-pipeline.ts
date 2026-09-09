@@ -218,6 +218,21 @@ async function testParserReference(): Promise<void> {
   if (spaced.tags.join(',') !== 'красные-губы,обезьяна,портрет') {
     throw new Error(`normalize tags: ${spaced.tags.join(',')}`);
   }
+
+  const dupes = parseVisionResponse(
+    '{"title":"V","description":"D","tags":["ваза","ваза","керамика","орнамент"],"embedText":"vase ceramic ornament"}',
+  );
+  if (dupes.tags.join(',') !== 'ваза,керамика,орнамент') {
+    throw new Error(`dedupe tags: ${dupes.tags.join(',')}`);
+  }
+
+  const slugDupes = parseVisionResponse(
+    '{"title":"V","description":"D","tags":["Красные губы","красные-губы","обезьяна","портрет"],"embedText":"macaque red lips monkey portrait"}',
+  );
+  if (slugDupes.tags.join(',') !== 'красные-губы,обезьяна,портрет') {
+    throw new Error(`dedupe slugify collision: ${slugDupes.tags.join(',')}`);
+  }
+  console.log('parseVisionResponse dedupe ok');
 }
 
 async function main(): Promise<void> {

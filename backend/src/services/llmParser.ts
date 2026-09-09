@@ -1,4 +1,4 @@
-import { slugifyTag } from '@llm-app/shared';
+import { dedupeTags, slugifyTag } from '@llm-app/shared';
 import { z } from 'zod';
 
 export const visionResponseSchema = z.object({
@@ -39,7 +39,9 @@ function normalizeTags(parsed: unknown): unknown {
 
   return {
     ...record,
-    tags: record.tags.map((tag) => slugifyTag(String(tag))).filter(Boolean),
+    tags: dedupeTags(
+      record.tags.map((tag) => slugifyTag(String(tag))).filter(Boolean),
+    ),
   };
 }
 

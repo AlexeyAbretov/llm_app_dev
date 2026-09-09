@@ -24,6 +24,7 @@ export type {
 
 export {
   slugifyTag,
+  dedupeTags,
   TAG_REGEX,
   TAG_MIN_LENGTH,
   TAG_MAX_LENGTH,
