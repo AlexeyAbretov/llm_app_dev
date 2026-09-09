@@ -13,7 +13,13 @@ export async function ensureCatalogIndexes(db: Db): Promise<void> {
 
   await collection.createIndexes([
     {
-      key: { title: 'text', description: 'text', tags: 'text', embedText: 'text' },
+      key: {
+        title: 'text',
+        description: 'text',
+        tags: 'text',
+        userTags: 'text',
+        embedText: 'text',
+      },
       name: 'text_search',
       default_language: 'none',
     },

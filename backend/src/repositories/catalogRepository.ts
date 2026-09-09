@@ -25,6 +25,7 @@ export class CatalogRepository {
       title: '',
       description: '',
       tags: [],
+      userTags: [],
       embedText: '',
       image: data.image,
       embedding: [],
