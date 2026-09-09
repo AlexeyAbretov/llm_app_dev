@@ -5,7 +5,7 @@ export type DeveloperDecision = "in-qa" | "needs-human";
 export type TesterDecision = "in-qa" | "qa-passed" | "needs-human";
 export type ReleaseManagerDecision = "ready-for-release" | "needs-human";
 
-export function roleForLabels(labels: string[]): Role | null {
+export function roleForLabels(labels: string[], body: string | null = null): Role | null {
   if (labels.includes("needs-human")) {
     return null;
   }
@@ -36,6 +36,10 @@ export function roleForLabels(labels: string[]): Role | null {
     !labels.includes("ready-for-release") &&
     !labels.includes("release-approved")
   ) {
+    // Дочерний баг (Related to #) не идёт в релиз-менеджер — пакет только у корня.
+    if (parseRelatedParentIssue(body) !== null) {
+      return null;
+    }
     return "release-manager";
   }
   return null;
@@ -99,6 +103,28 @@ export function decideTesterOutcome(
     return "in-qa";
   }
   return "needs-human";
+}
+
+/** Максимум дочерних bug-issues за один прогон тестировщика (корень). */
+export const MAX_TESTER_CHILD_BUGS = 2;
+
+export type TesterBugHandoff = "ok" | "too-many" | "grandchild";
+
+/** Глубина дерева QA = 1: дети не плодят внуков; на корне не больше MAX багов. */
+export function classifyTesterBugHandoff(
+  parentBody: string | null,
+  bugIssues: number[],
+): TesterBugHandoff {
+  if (bugIssues.length === 0) {
+    return "ok";
+  }
+  if (parseRelatedParentIssue(parentBody) !== null) {
+    return "grandchild";
+  }
+  if (bugIssues.length > MAX_TESTER_CHILD_BUGS) {
+    return "too-many";
+  }
+  return "ok";
 }
 
 export function testerBugIssues(resultText: string | null): number[] | null {

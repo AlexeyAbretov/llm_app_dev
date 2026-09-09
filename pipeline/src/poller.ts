@@ -6,6 +6,7 @@ import { JobStore } from "./jobs.js";
 import { jobLog } from "./log.js";
 import {
   childBugStillOpen,
+  classifyTesterBugHandoff,
   decideAnalystOutcome,
   decideDeveloperOutcome,
   decideReleaseManagerOutcome,
@@ -13,6 +14,7 @@ import {
   fixRoundBlocksDeveloper,
   groupAnalystIssuesByParent,
   MAX_FIX_ROUNDS,
+  MAX_TESTER_CHILD_BUGS,
   parseChildBugIssues,
   parseFixRound,
   parseRelatedParentIssue,
@@ -95,12 +97,15 @@ async function pollOnce(
 
   const work: Array<{ issue: GitHubIssue; role: Role }> = [];
   for (const issue of issues) {
-    const role = roleForLabels(issue.labels);
+    const role = roleForLabels(issue.labels, issue.body);
     if (!role) {
+      const parent = parseRelatedParentIssue(issue.body);
       jobLog(
         logger,
         { issue: issue.number, role: null, agentId: null, runId: null },
-        "skip: labels do not match a pipeline role trigger",
+        parent && issue.labels.includes("qa-passed")
+          ? `skip RM: child bug Related to #${parent}`
+          : "skip: labels do not match a pipeline role trigger",
       );
       continue;
     }
@@ -271,7 +276,16 @@ async function handleIssue(
       return;
     }
     if (role === "tester" && !linkedPull) {
-      jobLog(logger, fields, "skip tester: no open Fixes PR");
+      try {
+        await applyTesterLabels(github, issue.number, "needs-human");
+        await github.commentOnIssue(
+          issue.number,
+          "Пайплайн: `in-qa`, но нет открытого PR с `Fixes #<этот номер>` — тестировщик не стартует, нужен человек. Допишите `Fixes #N` в тело PR (не затирая старые Fixes) или снимите `in-qa`.",
+        );
+        jobLog(logger, fields, "labels: no Fixes PR → needs-human");
+      } catch (err) {
+        logger.error({ err, issue: issue.number }, "tester missing PR labels failed");
+      }
       return;
     }
   }
@@ -467,8 +481,18 @@ async function handleIssue(
       bugIssues,
     );
     if (testerDecision === "in-qa") {
-      try {
-        const bugs = await labelTesterBugs(github, store, issue, bugIssues ?? []);
+      const handoff = classifyTesterBugHandoff(issue.body, bugIssues ?? []);
+      if (handoff !== "ok") {
+        testerDecision = "needs-human";
+        const reason =
+          handoff === "grandchild"
+            ? "Пайплайн: тестировщик на дочернем баге (`Related to #`) открыл новые issues — глубина дерева QA = 1, внуки запрещены. Нужен человек."
+            : `Пайплайн: тестировщик создал больше ${MAX_TESTER_CHILD_BUGS} bug-issues за прогон (лимит). Нужен человек.`;
+        try {
+          await github.commentOnIssue(issue.number, reason);
+        } catch (err) {
+          logger.error({ err, issue: issue.number }, "tester handoff comment failed");
+        }
         jobLog(
           logger,
           {
@@ -477,13 +501,27 @@ async function handleIssue(
             agentId: outcome.agentId,
             runId: outcome.runId,
           },
-          bugs.length
-            ? `labeled tester bugs: ${bugs.map((number) => `#${number}`).join(", ")}`
-            : "tester reported no bugs",
+          `tester bug handoff rejected: ${handoff}`,
         );
-      } catch (err) {
-        testerDecision = "needs-human";
-        logger.error({ err, issue: issue.number }, "tester bug handoff failed");
+      } else {
+        try {
+          const bugs = await labelTesterBugs(github, store, issue, bugIssues ?? []);
+          jobLog(
+            logger,
+            {
+              issue: issue.number,
+              role,
+              agentId: outcome.agentId,
+              runId: outcome.runId,
+            },
+            bugs.length
+              ? `labeled tester bugs: ${bugs.map((number) => `#${number}`).join(", ")}`
+              : "tester reported no bugs",
+          );
+        } catch (err) {
+          testerDecision = "needs-human";
+          logger.error({ err, issue: issue.number }, "tester bug handoff failed");
+        }
       }
     }
     decision = testerDecision;

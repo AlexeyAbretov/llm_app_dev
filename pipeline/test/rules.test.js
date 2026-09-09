@@ -8,6 +8,7 @@ import {
 } from "../dist/deploy-rules.js";
 import {
   childBugStillOpen,
+  classifyTesterBugHandoff,
   decideReleaseManagerOutcome,
   decideTesterOutcome,
   fixRoundBlocksDeveloper,
@@ -93,6 +94,15 @@ test("release-manager starts on qa-passed only", () => {
   assert.equal(roleForLabels(["feature", "qa-passed", "ready-for-release"]), null);
   assert.equal(roleForLabels(["feature", "qa-passed", "release-approved"]), null);
   assert.equal(roleForLabels(["feature", "qa-passed", "needs-human"]), null);
+});
+
+test("release-manager does not start on child bugs", () => {
+  assert.equal(
+    roleForLabels(["bug", "qa-passed"], "Related to #14\nfix-round: 1"),
+    null,
+  );
+  assert.equal(roleForLabels(["bug", "qa-passed"], "корневой баг без родителя"), "release-manager");
+  assert.equal(roleForLabels(["feature", "qa-passed"], null), "release-manager");
 });
 
 test("release markers parse tag, PRs and changelog", () => {
@@ -207,6 +217,14 @@ test("child bug markers and open detection", () => {
   assert.equal(childBugStillOpen(["bug", "qa-passed"], "open"), false);
   assert.equal(childBugStillOpen(["bug", "in-qa"], "closed"), false);
   assert.equal(childBugStillOpen(["bug", "needs-human"], "open"), false);
+});
+
+test("classifyTesterBugHandoff limits tree depth and count", () => {
+  assert.equal(classifyTesterBugHandoff("feature root", []), "ok");
+  assert.equal(classifyTesterBugHandoff("feature root", [48, 49]), "ok");
+  assert.equal(classifyTesterBugHandoff("feature root", [48, 49, 50]), "too-many");
+  assert.equal(classifyTesterBugHandoff("Related to #14", [52]), "grandchild");
+  assert.equal(classifyTesterBugHandoff("Related to #14", []), "ok");
 });
 
 test("parseRelatedParentIssue and child bug candidate", () => {

@@ -33,6 +33,7 @@ Merge в `main` — только после явного подтвержден�
 | P8 | `pipeline/8-qa-loop` |
 | P9 | `pipeline/9-schedule-status` |
 | UI | `pipeline/ui-jobs` (после P2, можно параллельно с P3+) |
+| P10 | `pipeline/10-qa-loop-hardening` |
 
 ## Обзор
 
@@ -47,9 +48,10 @@ P6  Релиз-менеджер (без автоmerge)        ~2ч
 P7  Девопс: deployer + локальный compose  ~3ч
 P8  Цикл багов + лимит итераций           ~2ч
 P9  Дата релиза (cron) + статусы          ~2ч
+P10 Защита QA-цикла (глубина, RM, Fixes)  ~2ч
 UI  Таблица джоб и логи орка              ~3ч  (после P2)
                                         ────
-                                        ~29ч
+                                        ~31ч
 ```
 
 Оценка без отладки биллинга Cursor и без полноценного E2E Ollama.
@@ -261,6 +263,27 @@ Issue → план → PR → проверка → draft release → апрув 
 
 - [ ] Due сегодня без tag → комментарий, без compose
 - [ ] С tag → один деплой на несколько тиков cron / poll
+
+---
+
+## P10: Защита QA-цикла
+
+**Ветка:** `pipeline/10-qa-loop-hardening`
+
+**Цель:** не давать дереву багов и «тихому» `in-qa` без PR подвесить родителя; не собирать draft Release на дочерних issues.
+
+### Шаги
+
+1. `roleForLabels`: RM только если в теле нет `Related to #`.
+2. `in-qa` без открытого PR `Fixes #N` → `needs-human` + комментарий (не skip).
+3. Тестировщик: максимум 2 blocker-issue; на дочернем (`Related to #`) новые bugs → `needs-human`, внуки не создаются.
+4. Промпты tester / developer / RM / analyst; контракт `AGENT_PIPELINE.md` §3.
+
+### Проверка
+
+- [x] Unit: child `qa-passed` не даёт роль `release-manager`
+- [x] Unit: `classifyTesterBugHandoff` — внук и >2 bugs
+- [x] `npm test` в `pipeline/` зелёный
 
 ---
 

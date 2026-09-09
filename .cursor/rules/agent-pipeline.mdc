@@ -23,7 +23,7 @@ alwaysApply: true
 
 ## Апрув релиза
 
-Релиз-менеджер не мержит и не публикует Release сам. Канал: GitHub (assignee, review, draft release, label `ready-for-release`). Человек ставит `release-approved` или Approve.
+Релиз-менеджер не мержит и не публикует Release сам. Канал: GitHub (assignee, review, draft release, label `ready-for-release`). Человек ставит `release-approved` или Approve. RM **не** стартует на дочерних багах (`Related to #`).
 
 ## Запрещено агентам пайплайна
 
@@ -31,3 +31,4 @@ alwaysApply: true
 - Деплой с облачной VM
 - Утверждать E2E vision без локального прогона
 - Коммитить секреты
+- Тестировщик: больше 2 blocker-issues за прогон; внуки (issue на дочерний баг); затирать `Fixes #N` в теле PR
