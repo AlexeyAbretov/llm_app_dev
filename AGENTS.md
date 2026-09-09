@@ -49,6 +49,7 @@ npm run dev                    # frontend + backend
 npm run dev:backend            # только backend
 npm run test:catalog-repo -w @llm-app/backend   # проверка CatalogRepository (нужен MongoDB)
 npm run test:ollama -w @llm-app/backend         # Ollama vision/embed + parser (нужен ollama serve; test.jpg для E2E)
+npm run test:ollama-health -w @llm-app/backend # checkHealth() с моком /api/tags (без Ollama)
 npm run test:pipeline -w @llm-app/backend       # LangGraph pipeline (нужен MongoDB; для happy path — Ollama + test.jpg)
 npm run test:api -w @llm-app/backend            # REST API items/search (inject + моки, без MongoDB)
 npm run test:ollama-health -w @llm-app/backend  # checkHealth с моком fetch (без Ollama)

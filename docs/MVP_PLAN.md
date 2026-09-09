@@ -147,7 +147,7 @@
 ### Шаги
 
 1. `services/ollama.ts`:
-   - `checkHealth()` → ping `/api/tags`
+   - `checkHealth()` → GET `/api/tags`, наличие vision/embed/translate моделей из конфига (точный тег)
    - `generateFromImage(imagePath, prompt)` → POST `/api/chat` с image
    - `generateEmbedding(text)` → POST `/api/embeddings`
 2. `services/imageStorage.ts`:

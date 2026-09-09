@@ -55,6 +55,18 @@ async function main(): Promise<void> {
     'нет translate-модели',
   );
 
+  await assertCheckHealth(
+    ['qwen2.5vl:7b', 'nomic-embed-text', 'qwen2.5:7b'],
+    false,
+    'другой тег qwen2.5 (0.5b не скачан)',
+  );
+
+  await assertCheckHealth(
+    ['qwen2.5vl:3b', 'nomic-embed-text', 'qwen2.5:0.5b'],
+    false,
+    'другой тег qwen2.5vl (7b не скачан)',
+  );
+
   await withMockFetch(
     async () => ({ ok: false }) as Response,
     async () => {

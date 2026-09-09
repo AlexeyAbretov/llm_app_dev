@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "test:catalog-repo": "tsx scripts/test-catalog-repo.ts",
     "test:ollama": "tsx scripts/test-ollama.ts",
+    "test:ollama-health": "tsx scripts/test-ollama-health.ts",
     "test:pipeline": "tsx scripts/test-pipeline.ts",
     "test:api": "tsx scripts/test-api.ts",
     "test:ollama-health": "tsx scripts/test-ollama-health.ts",

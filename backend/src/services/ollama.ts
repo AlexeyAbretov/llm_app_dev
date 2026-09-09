@@ -53,11 +53,18 @@ interface OllamaTagsResponse {
   models?: Array<{ name: string }>;
 }
 
+/** Совпадение по конкретному тегу; `:latest` — явный alias без других тегов семейства. */
 function modelIsAvailable(available: string[], required: string): boolean {
-  const base = required.split(':')[0];
-  return available.some(
-    (name) => name === required || name.startsWith(`${base}:`) || name === base,
-  );
+  if (required.endsWith(':latest')) {
+    const base = required.slice(0, -':latest'.length);
+    return available.some((name) => name === required || name === base);
+  }
+
+  if (required.includes(':')) {
+    return available.includes(required);
+  }
+
+  return available.some((name) => name === required || name === `${required}:latest`);
 }
 
 /** Ping Ollama и проверка наличия vision/embed/translate моделей (GET /api/tags). */
