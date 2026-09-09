@@ -50,6 +50,7 @@ npm run test:pipeline -w @llm-app/backend       # LangGraph pipeline (нужен
 npm run test:api -w @llm-app/backend            # REST API items/search (inject + моки, без MongoDB)
 npm run test:ollama-health -w @llm-app/backend  # checkHealth с моком fetch (без Ollama)
 npm run reembed-catalog -w @llm-app/backend     # пересчитать embedding из embedText (нужны MongoDB + ollama)
+npm run migrate-uploads-to-gridfs -w @llm-app/backend  # перенос legacy disk → GridFS (MongoDB; опции --dry-run, --delete-local)
 npm run dev:frontend             # только frontend (Vite :5173, proxy /api → :3001)
 ```
 

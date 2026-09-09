@@ -1,7 +1,7 @@
 import type { CatalogRepository } from '../repositories/catalogRepository.js';
 import type {
   generateEmbedding,
-  generateFromImage,
+  generateFromImageBuffer,
 } from '../services/ollama.js';
 import type { save } from '../services/imageStorage.js';
 
@@ -11,7 +11,7 @@ export interface PipelineLogger {
 }
 
 export interface PipelineOllama {
-  generateFromImage: typeof generateFromImage;
+  generateFromImageBuffer: typeof generateFromImageBuffer;
   generateEmbedding: typeof generateEmbedding;
 }
 

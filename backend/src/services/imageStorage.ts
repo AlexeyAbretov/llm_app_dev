@@ -1,7 +1,9 @@
-import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { ObjectId, type GridFSBucket } from 'mongodb';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import type { Readable } from 'node:stream';
 import { uploadDir } from '../config.js';
+import { createGridFSBucket } from './gridfs.js';
 
 export interface SaveImageInput {
   buffer: Buffer;
@@ -10,49 +12,78 @@ export interface SaveImageInput {
 }
 
 export interface SavedImage {
-  /** Относительное имя файла в uploadDir */
+  /** GridFS file id (ObjectId string) */
   ref: string;
   mime: string;
   originalName: string;
 }
 
-const MIME_EXTENSION: Record<string, string> = {
-  'image/jpeg': '.jpg',
-  'image/png': '.png',
-  'image/webp': '.webp',
-};
+let bucket: GridFSBucket | null = null;
 
-function resolveExtension(mime: string, originalName: string): string {
-  const fromMime = MIME_EXTENSION[mime];
-  if (fromMime) {
-    return fromMime;
-  }
-
-  const fromName = extname(originalName).toLowerCase();
-  if (fromName) {
-    return fromName;
-  }
-
-  return '.jpg';
+export function initImageStorage(db: Parameters<typeof createGridFSBucket>[0]): void {
+  bucket = createGridFSBucket(db);
 }
 
-/** Сохраняет изображение на диск, возвращает относительный ref. */
-export async function save(input: SaveImageInput): Promise<SavedImage> {
-  const extension = resolveExtension(input.mime, input.originalName);
-  const ref = `${randomUUID()}${extension}`;
-  const absolutePath = join(uploadDir, ref);
+function requireBucket(): GridFSBucket {
+  if (!bucket) {
+    throw new Error('imageStorage не инициализирован (вызовите initImageStorage)');
+  }
+  return bucket;
+}
 
-  await mkdir(uploadDir, { recursive: true });
-  await writeFile(absolutePath, input.buffer);
+function parseObjectId(ref: string): ObjectId {
+  if (!ObjectId.isValid(ref)) {
+    throw new Error(`Некорректный GridFS ref: ${ref}`);
+  }
+  return new ObjectId(ref);
+}
+
+/** Сохраняет изображение в GridFS, возвращает id файла. */
+export async function save(input: SaveImageInput): Promise<SavedImage> {
+  const gfs = requireBucket();
+  const uploadStream = gfs.openUploadStream(input.originalName, {
+    metadata: {
+      mime: input.mime,
+      originalName: input.originalName,
+    },
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    uploadStream.on('error', reject);
+    uploadStream.on('finish', () => resolve());
+    uploadStream.end(input.buffer);
+  });
 
   return {
-    ref,
+    ref: uploadStream.id.toString(),
     mime: input.mime,
     originalName: input.originalName,
   };
 }
 
-/** URL для frontend (согласовано с @fastify/static prefix /uploads/). */
-export function getUrl(ref: string): string {
-  return `/uploads/${ref}`;
+export function openDownloadStream(ref: string): Readable {
+  return requireBucket().openDownloadStream(parseObjectId(ref));
+}
+
+export async function readBuffer(ref: string): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  const stream = openDownloadStream(ref);
+
+  await new Promise<void>((resolve, reject) => {
+    stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve());
+  });
+
+  return Buffer.concat(chunks);
+}
+
+/** Legacy disk: чтение файла из uploadDir (миграция и старые записи). */
+export async function readLegacyDiskBuffer(ref: string): Promise<Buffer> {
+  return readFile(join(uploadDir, ref));
+}
+
+/** URL для frontend — stream через API. */
+export function getUrl(itemId: string): string {
+  return `/api/items/${itemId}/image`;
 }

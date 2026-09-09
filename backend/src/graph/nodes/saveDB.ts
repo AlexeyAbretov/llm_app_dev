@@ -18,7 +18,7 @@ export function createSaveDBNode(deps: PipelineDeps) {
         embedText,
         embedding,
         image: {
-          storage: 'disk',
+          storage: 'gridfs',
           ref: savedImage.ref,
           mime: savedImage.mime,
           originalName: savedImage.originalName,

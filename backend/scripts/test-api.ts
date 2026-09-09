@@ -18,8 +18,8 @@ const sampleItem: CatalogItem = {
   tags: ['ваза'],
   embedText: 'ceramic vase decorative vessel',
   image: {
-    storage: 'disk',
-    ref: 'abc.jpg',
+    storage: 'gridfs',
+    ref: '507f1f77bcf86cd799439012',
     mime: 'image/jpeg',
     originalName: 'test.jpg',
   },
@@ -56,7 +56,7 @@ async function buildTestApp() {
       embedText: '',
       embedding: [],
       image: {
-        storage: 'disk' as const,
+        storage: 'gridfs' as const,
         ref: 'pending/upload',
         mime: 'image/jpeg',
         originalName: 'test.jpg',
@@ -169,7 +169,7 @@ async function main(): Promise<void> {
   if ('embedding' in itemJson || 'embedText' in itemJson) {
     throw new Error('GET /api/items/:id: embedding/embedText не должны быть в ответе');
   }
-  if (itemJson.imageUrl !== '/uploads/abc.jpg') {
+  if (itemJson.imageUrl !== `/api/items/${sampleItem._id}/image`) {
     throw new Error(`GET /api/items/:id: imageUrl=${String(itemJson.imageUrl)}`);
   }
   console.log('GET /api/items/:id → 200, imageUrl ok');

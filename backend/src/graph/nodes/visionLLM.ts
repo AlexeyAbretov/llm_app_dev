@@ -1,25 +1,23 @@
-import { join } from 'node:path';
-import { uploadDir } from '../../config.js';
 import {
-  generateFromImage as defaultGenerateFromImage,
+  generateFromImageBuffer as defaultGenerateFromImageBuffer,
 } from '../../services/ollama.js';
 import type { PipelineDeps } from '../deps.js';
 import { logNode } from '../log.js';
 import type { PipelineGraphState } from '../state.js';
 
 export function createVisionLLMNode(deps: PipelineDeps) {
-  const generateFromImage = deps.ollama?.generateFromImage ?? defaultGenerateFromImage;
+  const generateFromImageBuffer =
+    deps.ollama?.generateFromImageBuffer ?? defaultGenerateFromImageBuffer;
 
   return async function visionLLM(state: PipelineGraphState): Promise<Partial<PipelineGraphState>> {
-    const { itemId, imagePath } = state;
+    const { itemId, fileBuffer } = state;
 
     try {
-      if (!imagePath) {
-        throw new Error('imagePath не задан');
+      if (!fileBuffer?.length) {
+        throw new Error('fileBuffer не задан');
       }
 
-      const absolutePath = join(uploadDir, imagePath);
-      const rawVision = await generateFromImage(absolutePath);
+      const rawVision = await generateFromImageBuffer(fileBuffer);
       logNode(deps, itemId, 'visionLLM', 'ok');
       return {
         rawVision,

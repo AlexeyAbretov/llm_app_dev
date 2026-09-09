@@ -372,6 +372,32 @@
 
 ---
 
+## Этап 11: GridFS-хранилище (#63)
+
+**Ветка:** `stage/11-gridfs-storage`
+
+**Цель:** хранить загруженные фото в GridFS (Docker volume Mongo), не в `uploads/` репозитория.
+
+### Шаги
+
+1. `imageStorage.ts` — сохранение в GridFS bucket `catalog_images`
+2. `GET /api/items/:id/image` — stream из GridFS (legacy `disk` — из `uploads/` через migrate)
+3. Пайплайн: `storage: 'gridfs'`, vision из `fileBuffer`
+4. `migrate-uploads-to-gridfs` — перенос существующих `disk`-записей
+5. Убрать `@fastify/static` для `/uploads/`
+
+### Проверка
+
+- [x] `POST /api/items` → файл **не** появляется в `./uploads/`
+- [x] После `docker compose down` / `up -d mongo` ранее загруженные фото доступны по `GET /api/items/:id/image`
+- [x] Каталог и detail показывают превью (через `imageUrl`)
+- [ ] Vision pipeline: upload → `ready` с title/description (локально с Ollama)
+- [x] `npm run migrate-uploads-to-gridfs` переносит существующие `disk`-записи; после — `image.storage === 'gridfs'`
+- [x] `npm run test:api` и `npm run test:pipeline` проходят (MongoDB для pipeline)
+- [x] `uploads/` в корне репо не используется для новых загрузок
+
+---
+
 ## Порядок веток и коммитов
 
 Каждый этап — отдельная ветка. Внутри ветки допустимы несколько коммитов.
@@ -388,7 +414,8 @@ main
  ├── stage/7-upload-polling      → feat(frontend): upload page with polling
  ├── stage/8-catalog-detail      → feat(frontend): catalog + item detail pages
  ├── stage/9-search              → feat: hybrid search (backend + frontend)
- └── stage/10-polish             → docs: README + polish
+ ├── stage/10-polish             → docs: README + polish
+ └── stage/11-gridfs-storage     → feat(backend): GridFS image storage (#63)
 ```
 
 После каждой ветки: **подтверждение → merge в main → push**.

@@ -14,6 +14,7 @@ import { ensureCatalogIndexes } from '../src/repositories/indexes.js';
 import { checkHealth } from '../src/services/ollama.js';
 import { detectImageMime } from '../src/graph/nodes/validate.js';
 import { parseVisionResponse } from '../src/services/llmParser.js';
+import { initImageStorage } from '../src/services/imageStorage.js';
 
 const monorepoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..');
 
@@ -51,7 +52,7 @@ async function testInvalidFile(repo: CatalogRepository): Promise<void> {
 
   const created = await repo.create({
     image: {
-      storage: 'disk',
+      storage: 'gridfs',
       ref: 'pending/invalid.txt',
       mime: 'text/plain',
       originalName: 'invalid.txt',
@@ -93,7 +94,7 @@ async function testRetryWithMock(repo: CatalogRepository): Promise<void> {
 
   const created = await repo.create({
     image: {
-      storage: 'disk',
+      storage: 'gridfs',
       ref: 'pending/retry.jpg',
       mime: 'image/jpeg',
       originalName: 'retry.jpg',
@@ -106,7 +107,7 @@ async function testRetryWithMock(repo: CatalogRepository): Promise<void> {
     {
       repository: repo,
       ollama: {
-        generateFromImage: async () => {
+        generateFromImageBuffer: async () => {
           calls += 1;
           if (calls === 1) {
             return '{ broken json';
@@ -158,7 +159,7 @@ async function testHappyPathE2E(
 
   const created = await repo.create({
     image: {
-      storage: 'disk',
+      storage: 'gridfs',
       ref: 'pending/e2e.jpg',
       mime,
       originalName: 'test.jpg',
@@ -192,9 +193,14 @@ async function testHappyPathE2E(
     throw new Error('E2E: не все поля заполнены');
   }
 
+  if (item.image.storage !== 'gridfs' || !item.image.ref || item.image.ref.startsWith('pending/')) {
+    throw new Error(`E2E: ожидался gridfs ref, получено: ${item.image.storage}/${item.image.ref}`);
+  }
+
   console.log('status:', item.status);
   console.log('title:', item.title);
   console.log('tags:', item.tags.join(', '));
+  console.log('image.storage:', item.image.storage);
   console.log('embedding.length:', item.embedding.length);
 }
 
@@ -220,6 +226,7 @@ async function main(): Promise<void> {
   const client = new MongoClient(config.MONGO_URI);
   await client.connect();
   const db = client.db();
+  initImageStorage(db);
   await ensureCatalogIndexes(db);
   const repo = new CatalogRepository(db);
 

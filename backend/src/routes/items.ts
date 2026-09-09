@@ -10,6 +10,10 @@ import {
   MAX_FILE_SIZE_BYTES,
 } from '../graph/deps.js';
 import { detectImageMime } from '../graph/nodes/validate.js';
+import {
+  openDownloadStream,
+  readLegacyDiskBuffer,
+} from '../services/imageStorage.js';
 import { toPublicItem } from '../utils/toPublicItem.js';
 
 function sendError(reply: FastifyReply, status: 400 | 404 | 500, message: string) {
@@ -86,7 +90,7 @@ export async function itemsRoutes(app: FastifyInstance): Promise<void> {
     try {
       const created = await app.catalogRepository.create({
         image: {
-          storage: 'disk',
+          storage: 'gridfs',
           ref: 'pending/upload',
           mime,
           originalName,
@@ -111,6 +115,46 @@ export async function itemsRoutes(app: FastifyInstance): Promise<void> {
       return sendError(reply, 500, 'Не удалось создать объект');
     }
   });
+
+  app.get<{ Params: { id: string } }>(
+    '/api/items/:id/image',
+    async (request, reply) => {
+      try {
+        const item = await app.catalogRepository.findById(request.params.id);
+        if (!item) {
+          return sendError(reply, 404, 'Объект не найден');
+        }
+
+        const { storage, ref, mime } = item.image;
+        if (!ref || ref.startsWith('pending/')) {
+          return sendError(reply, 404, 'Изображение ещё не готово');
+        }
+
+        if (storage === 'gridfs') {
+          try {
+            const stream = openDownloadStream(ref);
+            return reply.type(mime).send(stream);
+          } catch {
+            return sendError(reply, 404, 'Файл изображения не найден');
+          }
+        }
+
+        if (storage === 'disk') {
+          try {
+            const buffer = await readLegacyDiskBuffer(ref);
+            return reply.type(mime).send(buffer);
+          } catch {
+            return sendError(reply, 404, 'Файл изображения не найден');
+          }
+        }
+
+        return sendError(reply, 404, 'Изображение не найдено');
+      } catch (error) {
+        request.log.error(error);
+        return sendError(reply, 500, 'Ошибка получения изображения');
+      }
+    },
+  );
 
   app.get<{ Params: { id: string } }>(
     '/api/items/:id',
