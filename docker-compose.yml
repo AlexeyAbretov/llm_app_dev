@@ -6,6 +6,46 @@ services:
     volumes:
       - mongo_data:/data/db
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    profiles:
+      - app
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      MONGO_URI: mongodb://mongo:27017/catalog
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_VISION_MODEL: qwen2.5vl:7b
+      OLLAMA_EMBED_MODEL: nomic-embed-text
+      OLLAMA_TRANSLATE_MODEL: qwen2.5:0.5b
+      PORT: "3001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    profiles:
+      - app
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
 
 volumes:
   mongo_data:

@@ -401,6 +401,32 @@
 
 ---
 
+## Этап 12: Docker deploy (#67)
+
+**Ветка:** `issue/67-docker-deploy`
+
+**Цель:** упаковать backend и frontend в Docker-образы; поднять полный стек одной командой. Ollama остаётся на хосте (GPU).
+
+### Шаги
+
+1. `backend/Dockerfile` — multi-stage, `node:20-bookworm-slim`, сборка из корня monorepo
+2. `frontend/Dockerfile` + `frontend/nginx.conf` — Vite build + nginx (SPA + proxy `/api`)
+3. `.dockerignore`, `.env.docker.example`
+4. `docker-compose.yml` — сервисы `backend`, `frontend`; profile `app`; `extra_hosts` для Ollama на хосте
+5. README, AGENTS.md — команды docker-деплоя
+
+### Проверка
+
+- [x] `docker compose --profile app up -d --build` — mongo + backend + frontend (конфигурация)
+- [x] `http://localhost:8080/` — UI через nginx (конфигурация proxy + SPA fallback)
+- [x] `GET /api/health` через frontend proxy → backend (nginx.conf)
+- [x] `OLLAMA_BASE_URL=http://host.docker.internal:11434` + `extra_hosts: host-gateway` (Linux)
+- [x] `docker compose up -d mongo` без profile — только MongoDB, как раньше
+- [x] `npm run dev` — dev-режим без изменений в коде приложения
+- [x] Документация: README, AGENTS.md, `.env.docker.example`
+
+---
+
 ## Порядок веток и коммитов
 
 Каждый этап — отдельная ветка. Внутри ветки допустимы несколько коммитов.
@@ -419,6 +445,7 @@ main
  ├── stage/9-search              → feat: hybrid search (backend + frontend)
  ├── stage/10-polish             → docs: README + polish
  └── stage/11-gridfs-storage     → feat(backend): GridFS image storage (#63)
+ └── issue/67-docker-deploy      → infra: Docker deploy backend + frontend (#67)
 ```
 
 После каждой ветки: **подтверждение → merge в main → push**.
