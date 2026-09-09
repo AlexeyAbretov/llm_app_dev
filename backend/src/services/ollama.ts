@@ -60,7 +60,7 @@ function modelIsAvailable(available: string[], required: string): boolean {
   );
 }
 
-/** Ping Ollama и проверка наличия vision/embed моделей (GET /api/tags). */
+/** Ping Ollama и проверка наличия vision/embed/translate моделей (GET /api/tags). */
 export async function checkHealth(): Promise<boolean> {
   try {
     const response = await fetch(`${config.OLLAMA_BASE_URL}/api/tags`, {
@@ -75,7 +75,8 @@ export async function checkHealth(): Promise<boolean> {
 
     return (
       modelIsAvailable(names, config.OLLAMA_VISION_MODEL) &&
-      modelIsAvailable(names, config.OLLAMA_EMBED_MODEL)
+      modelIsAvailable(names, config.OLLAMA_EMBED_MODEL) &&
+      modelIsAvailable(names, config.OLLAMA_TRANSLATE_MODEL)
     );
   } catch {
     return false;
