@@ -1,5 +1,6 @@
 import {
-  MAX_USER_TAGS,
+  MAX_TOTAL_TAGS,
+  maxUserTagsForItem,
   slugifyTag,
   TAG_MAX_LENGTH,
   TAG_MIN_LENGTH,
@@ -11,10 +12,11 @@ export function validateUserTags(
   rawTags: string[],
   llmTags: string[],
 ): { ok: true; userTags: string[] } | { ok: false; error: string } {
-  if (rawTags.length > MAX_USER_TAGS) {
+  const maxUser = maxUserTagsForItem(llmTags.length);
+  if (rawTags.length > maxUser) {
     return {
       ok: false,
-      error: `Не больше ${MAX_USER_TAGS} пользовательских тегов`,
+      error: `Не больше ${MAX_TOTAL_TAGS} тегов суммарно (LLM + ваши). Сейчас LLM-тегов: ${llmTags.length}, можно добавить ещё ${maxUser}`,
     };
   }
 
@@ -25,6 +27,14 @@ export function validateUserTags(
       return { ok: false, error: 'Некорректный формат тега' };
     }
     normalized.push(tag);
+  }
+
+  if (llmTags.length + normalized.length > MAX_TOTAL_TAGS) {
+    const allowed = maxUserTagsForItem(llmTags.length);
+    return {
+      ok: false,
+      error: `Не больше ${MAX_TOTAL_TAGS} тегов суммарно (LLM + ваши). Сейчас LLM-тегов: ${llmTags.length}, можно добавить ещё ${allowed}`,
+    };
   }
 
   for (const tag of normalized) {

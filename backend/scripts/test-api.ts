@@ -401,13 +401,57 @@ async function testUserTagsRoutes(): Promise<void> {
     method: 'PATCH',
     url: `/api/items/${sampleItem._id}/user-tags`,
     payload: {
-      userTags: Array.from({ length: 16 }, (_, i) => `тег-${i}`),
+      userTags: Array.from({ length: 15 }, (_, i) => `тег-${i}`),
     },
   });
   if (tooMany.statusCode !== 400) {
-    throw new Error(`PATCH >15 tags: ожидался 400, получено ${tooMany.statusCode}`);
+    throw new Error(
+      `PATCH >14 user tags (1 LLM): ожидался 400, получено ${tooMany.statusCode}`,
+    );
   }
-  console.log('PATCH user-tags (>15) → 400');
+  console.log('PATCH user-tags (>14 при 1 LLM) → 400');
+
+  const sevenLlmItem: CatalogItem = {
+    ...sampleItem,
+    tags: ['т1', 'т2', 'т3', 'т4', 'т5', 'т6', 'т7'],
+    userTags: [],
+  };
+  const { app: sevenLlmApp } = await buildTestApp({ item: sevenLlmItem });
+  const tooManyWithLlm = await sevenLlmApp.inject({
+    method: 'PATCH',
+    url: `/api/items/${sampleItem._id}/user-tags`,
+    payload: {
+      userTags: Array.from({ length: 9 }, (_, i) => `user-${i}`),
+    },
+  });
+  if (tooManyWithLlm.statusCode !== 400) {
+    throw new Error(
+      `PATCH 7 LLM + 9 user: ожидался 400, получено ${tooManyWithLlm.statusCode}`,
+    );
+  }
+  console.log('PATCH user-tags (7 LLM + 9 user) → 400');
+
+  const maxTotalOk = await sevenLlmApp.inject({
+    method: 'PATCH',
+    url: `/api/items/${sampleItem._id}/user-tags`,
+    payload: {
+      userTags: Array.from({ length: 8 }, (_, i) => `user-${i}`),
+    },
+  });
+  if (maxTotalOk.statusCode !== 200) {
+    throw new Error(
+      `PATCH 7 LLM + 8 user: ожидался 200, получено ${maxTotalOk.statusCode} ${maxTotalOk.body}`,
+    );
+  }
+  const maxTotalBody = JSON.parse(maxTotalOk.body) as {
+    userTags: string[];
+    tags: string[];
+  };
+  if (maxTotalBody.userTags.length !== 8 || maxTotalBody.tags.length !== 7) {
+    throw new Error(`PATCH 7 LLM + 8 user: неверное тело ${maxTotalOk.body}`);
+  }
+  console.log('PATCH user-tags (7 LLM + 8 user = 15) → 200');
+  await sevenLlmApp.close();
 
   const duplicateLlm = await app.inject({
     method: 'PATCH',
