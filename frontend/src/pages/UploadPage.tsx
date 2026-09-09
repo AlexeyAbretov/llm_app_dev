@@ -57,6 +57,16 @@ export function UploadPage() {
   const isTerminal =
     item?.status === 'ready' || item?.status === 'failed';
 
+  const renderUploadAnotherButton = () => (
+    <button
+      type="button"
+      onClick={handleUploadAnother}
+      className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+    >
+      Загрузить ещё
+    </button>
+  );
+
   return (
     <section className="space-y-6">
       <div>
@@ -87,17 +97,11 @@ export function UploadPage() {
         </div>
       )}
 
+      {uploadedId && isTerminal && renderUploadAnotherButton()}
+
       {uploadedId && <ProcessingStatus itemId={uploadedId} />}
 
-      {uploadedId && isTerminal && (
-        <button
-          type="button"
-          onClick={handleUploadAnother}
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-        >
-          Загрузить ещё
-        </button>
-      )}
+      {uploadedId && isTerminal && renderUploadAnotherButton()}
     </section>
   );
 }
