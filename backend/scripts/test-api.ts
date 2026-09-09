@@ -16,6 +16,7 @@ const sampleItem: CatalogItem = {
   title: 'Тестовая ваза',
   description: 'Описание',
   tags: ['ваза'],
+  userTags: ['коллекция'],
   embedText: 'ceramic vase decorative vessel',
   image: {
     storage: 'gridfs',
@@ -34,6 +35,12 @@ const sampleItem: CatalogItem = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+function itemMatchesTags(item: CatalogItem, filterTags: string[]): boolean {
+  return filterTags.some(
+    (tag) => item.tags.includes(tag) || item.userTags.includes(tag),
+  );
+}
+
 function minimalJpeg(): Buffer {
   return Buffer.from([
     0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
@@ -41,9 +48,10 @@ function minimalJpeg(): Buffer {
   ]);
 }
 
-async function buildTestApp() {
+async function buildTestApp(options?: { item?: CatalogItem }) {
   const app = Fastify({ logger: false });
   const enqueued: Array<{ itemId: string }> = [];
+  let currentItem = options?.item ?? sampleItem;
 
   const mockRepo = {
     create: async () => ({
@@ -53,6 +61,7 @@ async function buildTestApp() {
       title: '',
       description: '',
       tags: [],
+      userTags: [],
       embedText: '',
       embedding: [],
       image: {
@@ -62,25 +71,39 @@ async function buildTestApp() {
         originalName: 'test.jpg',
       },
     }),
-    findById: async (id: string) => (id === sampleItem._id ? sampleItem : null),
+    findById: async (id: string) => (id === currentItem._id ? currentItem : null),
+    update: async (id: string, partial: Partial<CatalogItem>) => {
+      if (id !== currentItem._id) {
+        return null;
+      }
+      currentItem = {
+        ...currentItem,
+        ...partial,
+        updatedAt: new Date().toISOString(),
+      };
+      return currentItem;
+    },
     findAll: async (page: number, limit: number, filterTags?: string[]) => {
       if (filterTags?.length) {
-        const matches = filterTags.some((tag) => sampleItem.tags.includes(tag));
+        const matches = itemMatchesTags(currentItem, filterTags);
         return {
-          items: matches ? [sampleItem] : [],
+          items: matches ? [currentItem] : [],
           total: matches ? 1 : 0,
         };
       }
       return {
-        items: [sampleItem],
+        items: [currentItem],
         total: 1,
       };
     },
-    findDistinctTags: async () => ['ваза', 'керамика'],
-    findAllWithEmbeddings: async () => [sampleItem],
+    findDistinctTags: async () => {
+      const all = [...currentItem.tags, ...currentItem.userTags];
+      return [...new Set(all)].sort();
+    },
+    findAllWithEmbeddings: async () => [currentItem],
     textSearch: async (q: string) =>
       q.includes('ваза') || q.toLowerCase().includes('vase')
-        ? [{ id: sampleItem._id, textScore: 1.5 }]
+        ? [{ id: currentItem._id, textScore: 1.5 }]
         : [],
   } as unknown as CatalogRepository;
 
@@ -228,6 +251,19 @@ async function main(): Promise<void> {
   }
   console.log('GET /api/items?tags=ваза → фильтр ok');
 
+  const listWithUserTag = await app.inject({
+    method: 'GET',
+    url: '/api/items?page=1&limit=20&tags=коллекция',
+  });
+  if (listWithUserTag.statusCode !== 200) {
+    throw new Error(`GET /api/items?tags=коллекция: ${listWithUserTag.statusCode}`);
+  }
+  const listWithUserTagJson = JSON.parse(listWithUserTag.body) as { items: unknown[] };
+  if (listWithUserTagJson.items.length !== 1) {
+    throw new Error(`GET /api/items?tags=коллекция: ожидался 1 item`);
+  }
+  console.log('GET /api/items?tags=коллекция → фильтр userTags ok');
+
   const listWithMissingTag = await app.inject({
     method: 'GET',
     url: '/api/items?page=1&limit=20&tags=несуществующий-тег',
@@ -261,10 +297,14 @@ async function main(): Promise<void> {
     throw new Error(`GET /api/tags: ${tagsList.statusCode}`);
   }
   const tagsListJson = JSON.parse(tagsList.body) as { tags: string[] };
-  if (!Array.isArray(tagsListJson.tags) || !tagsListJson.tags.includes('ваза')) {
+  if (
+    !Array.isArray(tagsListJson.tags) ||
+    !tagsListJson.tags.includes('ваза') ||
+    !tagsListJson.tags.includes('коллекция')
+  ) {
     throw new Error(`GET /api/tags: ${tagsList.body}`);
   }
-  console.log('GET /api/tags → distinct ok');
+  console.log('GET /api/tags → distinct ok (tags + userTags)');
 
   const search = await app.inject({
     method: 'GET',
@@ -330,7 +370,84 @@ async function main(): Promise<void> {
   console.log('pipelineRunner.enqueue вызван');
 
   await app.close();
+
+  await testUserTagsRoutes();
+
   console.log('\nГотово.');
+}
+
+async function testUserTagsRoutes(): Promise<void> {
+  const { app } = await buildTestApp();
+
+  const patchOk = await app.inject({
+    method: 'PATCH',
+    url: `/api/items/${sampleItem._id}/user-tags`,
+    payload: { userTags: ['коллекция', 'любимое'] },
+  });
+  if (patchOk.statusCode !== 200) {
+    throw new Error(`PATCH user-tags ok: ${patchOk.statusCode} ${patchOk.body}`);
+  }
+  const patched = JSON.parse(patchOk.body) as { userTags: string[]; tags: string[] };
+  if (
+    patched.userTags.length !== 2 ||
+    patched.userTags[0] !== 'коллекция' ||
+    patched.tags.length !== 1
+  ) {
+    throw new Error(`PATCH user-tags ok: неверное тело ${patchOk.body}`);
+  }
+  console.log('PATCH /api/items/:id/user-tags → 200');
+
+  const tooMany = await app.inject({
+    method: 'PATCH',
+    url: `/api/items/${sampleItem._id}/user-tags`,
+    payload: {
+      userTags: Array.from({ length: 16 }, (_, i) => `тег-${i}`),
+    },
+  });
+  if (tooMany.statusCode !== 400) {
+    throw new Error(`PATCH >15 tags: ожидался 400, получено ${tooMany.statusCode}`);
+  }
+  console.log('PATCH user-tags (>15) → 400');
+
+  const duplicateLlm = await app.inject({
+    method: 'PATCH',
+    url: `/api/items/${sampleItem._id}/user-tags`,
+    payload: { userTags: ['ваза'] },
+  });
+  if (duplicateLlm.statusCode !== 400) {
+    throw new Error(`PATCH duplicate LLM tag: ожидался 400, получено ${duplicateLlm.statusCode}`);
+  }
+  console.log('PATCH user-tags (duplicate LLM) → 400');
+
+  await app.close();
+
+  const pendingItem: CatalogItem = {
+    ...sampleItem,
+    status: 'pending',
+    userTags: [],
+  };
+  const { app: pendingApp } = await buildTestApp({ item: pendingItem });
+  const notReady = await pendingApp.inject({
+    method: 'PATCH',
+    url: `/api/items/${sampleItem._id}/user-tags`,
+    payload: { userTags: ['новый'] },
+  });
+  if (notReady.statusCode !== 409) {
+    throw new Error(`PATCH not ready: ожидался 409, получено ${notReady.statusCode}`);
+  }
+  console.log('PATCH user-tags (not ready) → 409');
+
+  const missing = await pendingApp.inject({
+    method: 'PATCH',
+    url: '/api/items/000000000000000000000000/user-tags',
+    payload: { userTags: ['новый'] },
+  });
+  if (missing.statusCode !== 404) {
+    throw new Error(`PATCH missing: ожидался 404, получено ${missing.statusCode}`);
+  }
+  console.log('PATCH user-tags (missing) → 404');
+
+  await pendingApp.close();
 }
 
 main().catch((error: unknown) => {

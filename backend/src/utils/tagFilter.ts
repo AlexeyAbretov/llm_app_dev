@@ -1,4 +1,4 @@
-import { slugifyTag } from '../services/llmParser.js';
+import { slugifyTag } from '@llm-app/shared';
 
 const TAG_REGEX = /^[a-zа-яё0-9-]+$/u;
 

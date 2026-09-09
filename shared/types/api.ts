@@ -49,3 +49,9 @@ export interface SearchResponse {
   results: SearchResultItem[];
   query: string;
 }
+
+export interface UpdateUserTagsRequest {
+  userTags: string[];
+}
+
+export interface UpdateUserTagsResponse extends GetItemResponse {}
