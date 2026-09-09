@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { ApiClientError } from '../api/client';
+import { UserTagsEditor } from '../components/UserTagsEditor';
 import { useItem } from '../hooks/useItem';
 
 function formatDate(iso: string): string {
@@ -67,17 +68,29 @@ export function ItemDetailPage() {
               <p className="whitespace-pre-wrap text-gray-700">{item.description}</p>
             )}
             {item.tags.length > 0 && (
-              <ul className="flex flex-wrap gap-2">
-                {item.tags.map((tag) => (
-                  <li
-                    key={tag}
-                    className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
-                  >
-                    {tag}
-                  </li>
-                ))}
-              </ul>
+              <div>
+                <h3 className="mb-2 text-sm font-medium text-gray-700">Теги LLM</h3>
+                <ul className="flex flex-wrap gap-2">
+                  {item.tags.map((tag) => (
+                    <li
+                      key={tag}
+                      className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
+                    >
+                      {tag}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-gray-700">Ваши теги</h3>
+              <UserTagsEditor
+                itemId={item._id}
+                userTags={item.userTags ?? []}
+                llmTags={item.tags}
+                status={item.status}
+              />
+            </div>
             <p className="text-sm text-gray-500">
               Добавлено:{' '}
               <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>

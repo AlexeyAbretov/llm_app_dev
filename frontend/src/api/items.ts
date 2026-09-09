@@ -2,8 +2,10 @@ import type {
   CreateItemResponse,
   GetItemResponse,
   ListItemsResponse,
+  UpdateUserTagsRequest,
+  UpdateUserTagsResponse,
 } from '../types';
-import { apiGet, apiPost } from './client';
+import { apiGet, apiPatch, apiPost } from './client';
 
 export function getHealth() {
   return apiGet<import('../types').HealthResponse>('/health');
@@ -25,4 +27,8 @@ export function createItem(image: File) {
   const formData = new FormData();
   formData.append('image', image);
   return apiPost<CreateItemResponse>('/items', formData);
+}
+
+export function updateUserTags(id: string, userTags: UpdateUserTagsRequest['userTags']) {
+  return apiPatch<UpdateUserTagsResponse>(`/items/${id}/user-tags`, { userTags });
 }

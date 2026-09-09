@@ -13,4 +13,6 @@ export type {
   ListItemsResponse,
   SearchResultItem,
   SearchResponse,
+  UpdateUserTagsRequest,
+  UpdateUserTagsResponse,
 } from '@llm-app/shared';

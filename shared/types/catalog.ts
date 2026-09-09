@@ -22,6 +22,8 @@ export interface CatalogItem {
   title: string;
   description: string;
   tags: string[];
+  /** Пользовательские теги (редактируются на detail после ready). */
+  userTags: string[];
   /** Английский текст для nomic / $text; в API не отдаём. */
   embedText: string;
   image: CatalogItemImage;

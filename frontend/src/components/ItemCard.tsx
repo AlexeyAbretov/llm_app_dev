@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { CatalogItemPublic } from '../types';
+import { mergeDisplayTags } from '../utils/tags';
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium' }).format(new Date(iso));
@@ -11,7 +12,7 @@ interface ItemCardProps {
 
 export function ItemCard({ item }: ItemCardProps) {
   const title = item.title || 'Без названия';
-  const visibleTags = item.tags.slice(0, 5);
+  const visibleTags = mergeDisplayTags(item.tags, item.userTags).slice(0, 5);
 
   return (
     <Link
