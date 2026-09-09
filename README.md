@@ -78,15 +78,4 @@ React + TypeScript · Node.js + Fastify + LangGraph.js · Ollama · MongoDB
 - [Конституция проекта](docs/CONSTITUTION.md) — принципы, стек, критерии готовности MVP (§9)
 - [План MVP](docs/MVP_PLAN.md) — этапы каталога (`stage/N-…`)
 - [AGENTS.md](AGENTS.md) — команды и инструкции для AI-агента
-- [Агентный пайплайн](docs/AGENT_PIPELINE.md) — контракт процесса разработки (отдельный трек)
-
-## Оркестратор пайплайна (опционально)
-
-Для автоматизации разработки через GitHub Issues — отдельный Docker-стек. Пошагово: [docs/AGENT_PIPELINE_SETUP.md](docs/AGENT_PIPELINE_SETUP.md).
-
-```bash
-cp pipeline/.env.example pipeline/.env
-# GITHUB_TOKEN и CURSOR_API_KEY в pipeline/.env
-docker compose -f docker-compose.pipeline.yml up --build -d
-# http://127.0.0.1:3020/health
-```
+- [Агентный пайплайн](docs/AGENT_PIPELINE.md) — ссылка на внешний репозиторий оркестратора ([multi_agents_development_pipeline](https://github.com/AlexeyAbretov/multi_agents_development_pipeline))

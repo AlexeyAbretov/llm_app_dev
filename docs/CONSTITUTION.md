@@ -357,8 +357,6 @@ tags: 3–7 существительных в нижнем регистре.
 ## 11. Ссылки
 
 - [MVP Plan](./MVP_PLAN.md) — пошаговый план каталога
-- [Агентный пайплайн](./AGENT_PIPELINE.md) — контракт процесса
-- [Запуск пайплайна](./AGENT_PIPELINE_SETUP.md) — с нуля: Docker, ключи, labels
-- [План пайплайна](./AGENT_PIPELINE_PLAN.md) — этапы `pipeline/N-…`
+- [Агентный пайплайн](./AGENT_PIPELINE.md) — stub; контракт и запуск в [multi_agents_development_pipeline](https://github.com/AlexeyAbretov/multi_agents_development_pipeline)
 - [LangGraph.js](https://langchain-ai.github.io/langgraphjs/)
 - [Ollama API](https://github.com/ollama/ollama/blob/main/docs/api.md)

@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Каталог объектов — ключевые правила
 
-Полная документация: `docs/CONSTITUTION.md`, план каталога: `docs/MVP_PLAN.md`, пайплайн: `docs/AGENT_PIPELINE.md`.
+Полная документация: `docs/CONSTITUTION.md`, план каталога: `docs/MVP_PLAN.md`. Пайплайн: [multi_agents_development_pipeline](https://github.com/AlexeyAbretov/multi_agents_development_pipeline).
 
 ## Стек (не менять без обсуждения)
 
@@ -39,7 +39,7 @@ alwaysApply: true
 ## При реализации
 
 - Каталог: этапы `docs/MVP_PLAN.md`, ветки `stage/N-...`
-- Пайплайн: этапы `docs/AGENT_PIPELINE_PLAN.md`, ветки `pipeline/N-...`
+- Пайплайн: отдельный репозиторий, ветки `pipeline/N-...`
 - **Не смешивать треки**; merge в `main` только после подтверждения (см. `git-workflow.mdc`)
 - Один этап = одна ветка; внутри ветки — один или несколько коммитов
 - Минимальный diff, без over-engineering

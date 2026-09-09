@@ -10,23 +10,22 @@
 |------|------------|
 | [docs/CONSTITUTION.md](docs/CONSTITUTION.md) | Принципы, архитектура, API, schema |
 | [docs/MVP_PLAN.md](docs/MVP_PLAN.md) | Этапы каталога (`stage/N-…`) |
-| [docs/AGENT_PIPELINE.md](docs/AGENT_PIPELINE.md) | Контракт агентного пайплайна |
-| [docs/AGENT_PIPELINE_SETUP.md](docs/AGENT_PIPELINE_SETUP.md) | Запуск оркестратора с нуля |
-| [pipeline/README.md](pipeline/README.md) | Логи, stop полла, schedule, UI :3010 |
-| [docs/AGENT_PIPELINE_PLAN.md](docs/AGENT_PIPELINE_PLAN.md) | Этапы пайплайна (`pipeline/N-…`) |
+| [docs/AGENT_PIPELINE.md](docs/AGENT_PIPELINE.md) | Ссылка на репозиторий оркестратора |
 | [.cursor/rules/](.cursor/rules/) | Правила для Cursor |
+
+Агентный пайплайн (контракт, setup, план этапов): [multi_agents_development_pipeline](https://github.com/AlexeyAbretov/multi_agents_development_pipeline).
 
 ## Быстрый старт для агента
 
 1. Прочитать `docs/CONSTITUTION.md` — понять scope и ограничения
-2. Каталог: `docs/MVP_PLAN.md`. Пайплайн агентов: `docs/AGENT_PIPELINE_PLAN.md`. Не смешивать треки в одной ветке.
-3. Ветка от `main`: `stage/N-...` (каталог) или `pipeline/N-...` (процесс)
+2. Каталог: `docs/MVP_PLAN.md`. Пайплайн агентов — отдельный репозиторий (см. выше). Не смешивать треки в одной ветке.
+3. Ветка от `main`: `stage/N-...` (каталог)
 4. Реализовать только текущий этап, не забегая вперёд
 5. Push ветки → проверить чеклист → **ждать подтверждения** перед merge в `main`
 
 ## Git-workflow
 
-- Один этап каталога = одна ветка `stage/…`; один этап пайплайна = `pipeline/…`
+- Один этап каталога = одна ветка `stage/…`
 - Merge в `main` **только после явного подтверждения** пользователя
 - Подробнее: [CONSTITUTION.md §3](docs/CONSTITUTION.md#3-git-workflow)
 
@@ -55,7 +54,6 @@ npm run test:api -w @llm-app/backend            # REST API items/search (inject 
 npm run test:ollama-health -w @llm-app/backend  # checkHealth с моком fetch (без Ollama)
 npm run reembed-catalog -w @llm-app/backend     # пересчитать embedding из embedText (нужны MongoDB + ollama)
 npm run dev:frontend             # только frontend (Vite :5173, proxy /api → :3001)
-docker compose -f docker-compose.pipeline.yml up --build -d   # оркестратор + deployer, см. docs/AGENT_PIPELINE_SETUP.md
 ```
 
 ## Железо
