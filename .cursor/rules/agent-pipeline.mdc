@@ -1,0 +1,26 @@
+---
+description: Агентный пайплайн — правила разработки оркестратора
+alwaysApply: true
+---
+
+# Агентный пайплайн (репозиторий оркестратора)
+
+Контракт: `docs/AGENT_PIPELINE.md`. Запуск: `docs/AGENT_PIPELINE_SETUP.md`. Этапы: `docs/AGENT_PIPELINE_PLAN.md`.
+
+## Независимость от продукта
+
+- Этот репо — **только** оркестратор, deployer, UI, промпты
+- Целевой продукт указывается в `pipeline/.env` (`GITHUB_REPO`, `CURSOR_REPO_URL`)
+- Не импортировать код продукта; deployer монтирует checkout продукта через `PRODUCT_WORKSPACE_HOST`
+
+## Git-workflow
+
+- Ветки этапов: `pipeline/N-…`
+- Merge в `main` только после подтверждения пользователя
+
+## Запрещено
+
+- Merge в `main` без апрува человека
+- Деплой с облачной VM
+- Коммитить секреты (`.env`, `pipeline/.env`)
+- Hardcode URL конкретного продукта в коде (только плейсхолдеры в `.env.example`)

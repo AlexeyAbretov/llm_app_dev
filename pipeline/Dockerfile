@@ -1,0 +1,20 @@
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY src ./src
+COPY test ./test
+RUN npm test
+
+FROM node:22-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+RUN apk add --no-cache docker-cli docker-cli-compose
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY --from=build /app/dist ./dist
+COPY prompts ./prompts
+EXPOSE 3020
+# root: доступ к docker.sock у deployer; orchestrator тоже user 0 в compose
+CMD ["node", "dist/index.js"]

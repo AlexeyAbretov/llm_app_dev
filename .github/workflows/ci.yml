@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            pipeline/package-lock.json
+            pipeline-ui/package-lock.json
+      - name: Pipeline tsc and tests
+        working-directory: pipeline
+        run: |
+          npm ci
+          npm run build
+          npm test --if-present
+      - name: Pipeline UI build
+        working-directory: pipeline-ui
+        run: |
+          npm ci
+          npm run build
