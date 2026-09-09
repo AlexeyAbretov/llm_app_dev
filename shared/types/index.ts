@@ -27,5 +27,6 @@ export {
   TAG_REGEX,
   TAG_MIN_LENGTH,
   TAG_MAX_LENGTH,
-  MAX_USER_TAGS,
+  MAX_TOTAL_TAGS,
+  maxUserTagsForItem,
 } from '../utils/tagNormalize.js';

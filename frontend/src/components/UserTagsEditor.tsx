@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { MAX_USER_TAGS, slugifyTag } from '@llm-app/shared';
+import { maxUserTagsForItem, slugifyTag } from '@llm-app/shared';
 import { ApiClientError } from '../api/client';
 import { updateUserTags } from '../api/items';
 import type { GetItemResponse } from '../types';
@@ -42,10 +42,11 @@ export function UserTagsEditor({ itemId, userTags, llmTags, status }: UserTagsEd
     );
   }
 
+  const maxAllowed = maxUserTagsForItem(llmTags.length);
   const preview = slugifyTag(input);
   const canAdd =
     preview.length > 0 &&
-    userTags.length < MAX_USER_TAGS &&
+    userTags.length < maxAllowed &&
     !userTags.includes(preview) &&
     !llmTags.some((tag) => tag.toLowerCase() === preview.toLowerCase()) &&
     !mutation.isPending;
@@ -104,7 +105,7 @@ export function UserTagsEditor({ itemId, userTags, llmTags, status }: UserTagsEd
             }
           }}
           placeholder="Новый тег…"
-          disabled={mutation.isPending || userTags.length >= MAX_USER_TAGS}
+          disabled={mutation.isPending || userTags.length >= maxAllowed}
           className="min-w-[12rem] flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
         />
         <button
@@ -116,7 +117,7 @@ export function UserTagsEditor({ itemId, userTags, llmTags, status }: UserTagsEd
           Добавить
         </button>
         <span className="text-xs text-gray-500">
-          {userTags.length}/{MAX_USER_TAGS}
+          {userTags.length}/{maxAllowed} · всего {llmTags.length + userTags.length}/15
         </span>
       </div>
 
