@@ -42,9 +42,14 @@ ollama pull qwen2.5:0.5b       # перевод поискового запро�
 ```
 
 ```bash
-docker compose up -d mongo     # MongoDB
+docker compose up -d mongo     # MongoDB (только БД, dev-режим)
 ollama serve                   # Ollama (на хосте, нужен GPU)
-npm run dev                    # frontend + backend
+npm run dev                    # frontend + backend (HMR, :5173)
+
+# Production-like стек в Docker (Ollama всё равно на хосте):
+docker compose --profile app up -d --build   # UI :8080, API :3001
+docker compose --profile app down            # остановка
+curl -s http://localhost:8080/api/health     # health через nginx proxy
 npm run dev:backend            # только backend
 npm run test:catalog-repo -w @llm-app/backend   # проверка CatalogRepository (нужен MongoDB)
 npm run test:ollama -w @llm-app/backend         # Ollama vision/embed + parser (нужен ollama serve; test.jpg для E2E)
