@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getHealth } from '../api/items';
+import { ErrorBoundary } from './ErrorBoundary';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   [
@@ -72,7 +73,9 @@ export function Layout() {
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-8">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   );

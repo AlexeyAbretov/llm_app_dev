@@ -12,6 +12,7 @@
     "test:ollama-health": "tsx scripts/test-ollama-health.ts",
     "test:pipeline": "tsx scripts/test-pipeline.ts",
     "test:api": "tsx scripts/test-api.ts",
+    "test:ollama-health": "tsx scripts/test-ollama-health.ts",
     "reembed-catalog": "tsx scripts/reembed-catalog.ts"
   },
   "dependencies": {
