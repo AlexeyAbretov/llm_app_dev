@@ -34,6 +34,7 @@ Merge в `main` — только после явного подтвержден�
 | P9 | `pipeline/9-schedule-status` |
 | UI | `pipeline/ui-jobs` (после P2, можно параллельно с P3+) |
 | P10 | `pipeline/10-qa-loop-hardening` |
+| P11 | `pipeline/11-stacked-child-prs` |
 
 ## Обзор
 
@@ -49,9 +50,10 @@ P7  Девопс: deployer + локальный compose  ~3ч
 P8  Цикл багов + лимит итераций           ~2ч
 P9  Дата релиза (cron) + статусы          ~2ч
 P10 Защита QA-цикла (глубина, RM, Fixes)  ~2ч
+P11 Stacked child PR + re-QA + close     ~2ч
 UI  Таблица джоб и логи орка              ~3ч  (после P2)
                                         ────
-                                        ~31ч
+                                        ~33ч
 ```
 
 Оценка без отладки биллинга Cursor и без полноценного E2E Ollama.
@@ -283,6 +285,27 @@ Issue → план → PR → проверка → draft release → апрув 
 
 - [x] Unit: child `qa-passed` не даёт роль `release-manager`
 - [x] Unit: `classifyTesterBugHandoff` — внук и >2 bugs
+- [x] `npm test` в `pipeline/` зелёный
+
+---
+
+## P11: Stacked child PR и закрытие после merge
+
+**Ветка:** `pipeline/11-stacked-child-prs`
+
+**Цель:** дочерний фикс идёт в ветку родителя, не в `main`; re-QA родителя ждёт merge детского PR; после merge issue закрывается; зависшие джобы после recreate контейнера сбрасываются.
+
+### Шаги
+
+1. Developer с `Related to #N`: `startingRef` = head PR родителя; после PR — retarget base на эту ветку.
+2. Re-QA родителя блокируется, пока у ребёнка открыт `Fixes` PR.
+3. Дочерний `qa-passed` + смерженный PR + нет открытого PR → close issue.
+4. Старт оркестратора: удалить `running`/`queued` джобы.
+
+### Проверка
+
+- [x] Unit: open PR ребёнка блокирует re-QA при `qa-passed`
+- [x] Unit: `shouldCloseMergedChildIssue` только для детей со смерженным PR
 - [x] `npm test` в `pipeline/` зелёный
 
 ---

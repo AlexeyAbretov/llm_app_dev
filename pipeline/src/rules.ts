@@ -358,3 +358,34 @@ export function childBugStillOpen(labels: string[], state: "open" | "closed"): b
   }
   return true;
 }
+
+/** Open Fixes PR блокирует re-QA родителя, даже если ребёнок уже qa-passed. */
+export function childBlocksParentReQa(
+  labels: string[],
+  state: "open" | "closed",
+  hasOpenFixPr: boolean,
+): boolean {
+  if (hasOpenFixPr) {
+    return true;
+  }
+  return childBugStillOpen(labels, state);
+}
+
+/** Дочерний qa-passed без открытого PR, фикс уже смержен — можно закрыть issue. */
+export function shouldCloseMergedChildIssue(params: {
+  body: string | null;
+  labels: string[];
+  hasOpenFixPr: boolean;
+  hasMergedFixPr: boolean;
+}): boolean {
+  if (parseRelatedParentIssue(params.body) === null) {
+    return false;
+  }
+  if (!params.labels.includes("qa-passed")) {
+    return false;
+  }
+  if (params.hasOpenFixPr) {
+    return false;
+  }
+  return params.hasMergedFixPr;
+}

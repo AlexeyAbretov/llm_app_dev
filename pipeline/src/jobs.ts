@@ -129,6 +129,22 @@ export class JobStore {
     });
   }
 
+  async dropUnfinishedJobs(): Promise<number> {
+    return this.synchronized(() => {
+      const data = this.loadSync();
+      const next = data.jobs.filter(
+        (job) => job.status !== "running" && job.status !== "queued",
+      );
+      const dropped = data.jobs.length - next.length;
+      if (dropped === 0) {
+        return 0;
+      }
+      data.jobs = next;
+      this.saveSync(data);
+      return dropped;
+    });
+  }
+
   lastPollAt(): Promise<string | null> {
     return this.synchronized(() => this.loadSync().lastPollAt);
   }

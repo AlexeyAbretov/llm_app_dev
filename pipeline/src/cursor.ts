@@ -17,7 +17,12 @@ function loadPrompt(promptsDir: string, role: Role): string {
   return readFileSync(join(promptsDir, `${role}.md`), "utf8");
 }
 
-function buildMessage(rolePrompt: string, issue: GitHubIssue, pull?: GitHubPull): string {
+function buildMessage(
+  rolePrompt: string,
+  issue: GitHubIssue,
+  pull?: GitHubPull,
+  role?: Role,
+): string {
   const lines = [
     rolePrompt.trim(),
     "",
@@ -37,6 +42,13 @@ function buildMessage(rolePrompt: string, issue: GitHubIssue, pull?: GitHubPull)
       `Ветка: ${pull.headRef}`,
       `Заголовок: ${pull.title}`,
     );
+    if (role === "developer") {
+      lines.push(
+        "",
+        `База твоего PR: \`${pull.headRef}\` — **не** \`main\`.`,
+        `Открой PR командой \`gh pr create --base ${pull.headRef}\` (Cursor autoCreatePR часто целится в default branch — сразу смени base, если открылся в main).`,
+      );
+    }
   }
   return lines.join("\n");
 }
@@ -72,7 +84,7 @@ export async function runCloudAgent(
     });
 
     agentId = agent.agentId;
-    const run = await agent.send(buildMessage(loadPrompt(config.PROMPTS_DIR, role), issue, pull));
+    const run = await agent.send(buildMessage(loadPrompt(config.PROMPTS_DIR, role), issue, pull, role));
     runId = run.id;
     await onStarted({ agentId, runId });
 

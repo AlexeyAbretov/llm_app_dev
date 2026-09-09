@@ -16,6 +16,7 @@ export type GitHubPull = {
   body: string | null;
   html_url: string;
   headRef: string;
+  baseRef: string;
 };
 
 type GitHubIssueRaw = {
@@ -111,9 +112,55 @@ export class GitHubClient {
   }
 
   async findOpenFixPr(issue: number): Promise<GitHubPull | null> {
+    const items = await this.listPulls("open");
+    return items.find((pr) => prFixesIssue(pr, issue)) ?? null;
+  }
+
+  async findMergedFixPr(issue: number): Promise<GitHubPull | null> {
+    const items = await this.listPulls("closed");
+    return items.find((pr) => pr.merged && prFixesIssue(pr, issue)) ?? null;
+  }
+
+  async hasOpenFixPr(issue: number): Promise<boolean> {
+    return (await this.findOpenFixPr(issue)) !== null;
+  }
+
+  async retargetPullBase(pr: number, base: string): Promise<void> {
+    const { owner, repo } = this.repoPath();
+    const response = await githubFetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${pr}`,
+      {
+        method: "PATCH",
+        headers: { ...this.headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ base }),
+      },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub retarget PR ${response.status}: ${text.slice(0, 500)}`);
+    }
+  }
+
+  async closeIssue(issue: number): Promise<void> {
+    const { owner, repo } = this.repoPath();
+    const response = await githubFetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues/${issue}`,
+      {
+        method: "PATCH",
+        headers: { ...this.headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ state: "closed" }),
+      },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`GitHub close issue ${response.status}: ${text.slice(0, 500)}`);
+    }
+  }
+
+  private async listPulls(state: "open" | "closed"): Promise<Array<GitHubPull & { merged: boolean }>> {
     const { owner, repo } = this.repoPath();
     const url = new URL(`https://api.github.com/repos/${owner}/${repo}/pulls`);
-    url.searchParams.set("state", "open");
+    url.searchParams.set("state", state);
     url.searchParams.set("per_page", "50");
 
     const response = await githubFetch(url, { headers: this.headers() });
@@ -127,28 +174,19 @@ export class GitHubClient {
       title: string;
       body: string | null;
       html_url: string;
+      merged_at?: string | null;
       head?: { ref?: string };
+      base?: { ref?: string };
     }>;
-    const found = items.find((pr) =>
-      prFixesIssue(
-        { title: pr.title, body: pr.body, headRef: pr.head?.ref ?? "" },
-        issue,
-      ),
-    );
-    if (!found) {
-      return null;
-    }
-    return {
-      number: found.number,
-      title: found.title,
-      body: found.body,
-      html_url: found.html_url,
-      headRef: found.head?.ref ?? "",
-    };
-  }
-
-  async hasOpenFixPr(issue: number): Promise<boolean> {
-    return (await this.findOpenFixPr(issue)) !== null;
+    return items.map((pr) => ({
+      number: pr.number,
+      title: pr.title,
+      body: pr.body,
+      html_url: pr.html_url,
+      headRef: pr.head?.ref ?? "",
+      baseRef: pr.base?.ref ?? "",
+      merged: Boolean(pr.merged_at),
+    }));
   }
 
   async commentOnIssue(issue: number, body: string): Promise<void> {

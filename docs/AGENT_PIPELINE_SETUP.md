@@ -200,7 +200,7 @@ Volume `llm_app_dev_pipeline_data` хранит `jobs.json` (очередь). `d
 
 На `qa-passed` **корневой** issue (нет `Related to #`): `role: release-manager`. Агент отдаёт `PIPELINE_RELEASE_TAG`, `PIPELINE_PR_NUMBERS`, блок changelog и `PIPELINE_LABELS`. Оркестратор создаёт/обновляет **draft** Release, назначает owner, просит review на PR, ставит `ready-for-release`. Publish и merge в `main` оркестратор **не** делает. Апрув: вручную label `release-approved`, затем Publish Release / merge PR руками. Сбой протокола или GitHub API → `+needs-human`. Дочерний `qa-passed` RM пропускает (`skip RM: child bug`).
 
-Цикл QA: дочерние bugs → снова аналитик. В теле родителя `<!-- pipeline:child-bugs:… -->`; пока они в пайплайне, tester на родителе ждёт. После их `qa-passed`/закрытия — повторное QA родителя. `fix-round` в теле issue увеличивается при каждом старте разработчика; после 3 — четвёртый старт даёт `needs-human`.
+Цикл QA: дочерние bugs → снова аналитик. В теле родителя `<!-- pipeline:child-bugs:… -->`; пока они в пайплайне **или у ребёнка открыт Fixes PR**, tester на родителе ждёт. После `qa-passed`/закрытия **и merge PR ребёнка** — повторное QA родителя. `qa-passed` дочерний без открытого PR + смерженный Fixes → issue закрывается комментарием пайплайна. `fix-round` в теле issue увеличивается при каждом старте разработчика; после 3 — четвёртый старт даёт `needs-human`. Дочерний разработчик стартует с ветки PR родителя; base PR, открытый в `main`, сменяется на head родителя.
 
 Sibling child bugs (несколько issues с `bug` + `needs-plan` и одним `Related to #parent`) планируются **параллельно** в одном poll-tick оркестратора; в UI `:3010` / `jobs.json` видны несколько running analyst-джобов. Для контекста ветки аналитику передаётся открытый PR родителя (`Fixes #parent`), если он есть.
 
@@ -212,7 +212,7 @@ CI на каждый PR: `.github/workflows/ci.yml`, check **`ci`**. Чтобы 
 
 ## 8. Сброс очереди (`jobs.json`)
 
-Пара `(номер issue, роль)` запускается один раз. Чтобы прогнать ту же issue снова:
+Пара `(номер issue, роль)` запускается один раз. После recreate контейнера оркестратор сам удаляет джобы `running`/`queued` (агент уже мёртв). Чтобы прогнать **finished** пару снова:
 
 ```powershell
 docker compose -f docker-compose.pipeline.yml exec orchestrator rm -f /data/jobs.json

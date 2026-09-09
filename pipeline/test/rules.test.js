@@ -8,6 +8,7 @@ import {
 } from "../dist/deploy-rules.js";
 import {
   childBugStillOpen,
+  childBlocksParentReQa,
   classifyTesterBugHandoff,
   decideReleaseManagerOutcome,
   decideTesterOutcome,
@@ -17,6 +18,7 @@ import {
   parseChildBugIssues,
   parseFixRound,
   parseRelatedParentIssue,
+  shouldCloseMergedChildIssue,
   releaseChangelog,
   releasePrNumbers,
   releaseTag,
@@ -217,6 +219,42 @@ test("child bug markers and open detection", () => {
   assert.equal(childBugStillOpen(["bug", "qa-passed"], "open"), false);
   assert.equal(childBugStillOpen(["bug", "in-qa"], "closed"), false);
   assert.equal(childBugStillOpen(["bug", "needs-human"], "open"), false);
+});
+
+test("open child PR blocks parent re-QA even after qa-passed", () => {
+  assert.equal(childBlocksParentReQa(["bug", "qa-passed"], "open", true), true);
+  assert.equal(childBlocksParentReQa(["bug", "qa-passed"], "open", false), false);
+  assert.equal(childBlocksParentReQa(["bug", "in-qa"], "open", false), true);
+});
+
+test("shouldCloseMergedChildIssue only for child qa-passed with merged PR", () => {
+  assert.equal(
+    shouldCloseMergedChildIssue({
+      body: "Related to #14",
+      labels: ["bug", "qa-passed"],
+      hasOpenFixPr: false,
+      hasMergedFixPr: true,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldCloseMergedChildIssue({
+      body: "Related to #14",
+      labels: ["bug", "qa-passed"],
+      hasOpenFixPr: true,
+      hasMergedFixPr: true,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldCloseMergedChildIssue({
+      body: "корневая фича",
+      labels: ["feature", "qa-passed"],
+      hasOpenFixPr: false,
+      hasMergedFixPr: true,
+    }),
+    false,
+  );
 });
 
 test("classifyTesterBugHandoff limits tree depth and count", () => {

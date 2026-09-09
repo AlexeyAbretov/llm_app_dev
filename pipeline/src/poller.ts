@@ -5,7 +5,7 @@ import { GitHubClient, agentResultComment, jobComment, type GitHubIssue, type Gi
 import { JobStore } from "./jobs.js";
 import { jobLog } from "./log.js";
 import {
-  childBugStillOpen,
+  childBlocksParentReQa,
   classifyTesterBugHandoff,
   decideAnalystOutcome,
   decideDeveloperOutcome,
@@ -18,6 +18,7 @@ import {
   parseChildBugIssues,
   parseFixRound,
   parseRelatedParentIssue,
+  shouldCloseMergedChildIssue,
   releaseChangelog,
   releasePrNumbers,
   releaseTag,
@@ -137,6 +138,7 @@ async function pollOnce(
     await handleIssue(config, logger, store, github, issue, role);
   }
 
+  await closeMergedChildBugs(github, logger, issues);
   await store.setLastPollAt(pollStartedAt);
 }
 
@@ -196,11 +198,83 @@ async function childBugsBlockingReQa(
   const blocking: number[] = [];
   for (const number of children) {
     const child = await github.getIssue(number);
-    if (childBugStillOpen(child.labels, child.state)) {
+    const hasOpenFixPr = await github.hasOpenFixPr(number);
+    if (childBlocksParentReQa(child.labels, child.state, hasOpenFixPr)) {
       blocking.push(number);
     }
   }
   return blocking;
+}
+
+async function closeMergedChildBugs(
+  github: GitHubClient,
+  logger: FastifyBaseLogger,
+  issues: GitHubIssue[],
+): Promise<void> {
+  for (const issue of issues) {
+    if (!issue.labels.includes("qa-passed")) {
+      continue;
+    }
+    try {
+      const hasOpenFixPr = await github.hasOpenFixPr(issue.number);
+      const merged = hasOpenFixPr ? null : await github.findMergedFixPr(issue.number);
+      if (
+        !shouldCloseMergedChildIssue({
+          body: issue.body,
+          labels: issue.labels,
+          hasOpenFixPr,
+          hasMergedFixPr: merged !== null,
+        })
+      ) {
+        continue;
+      }
+      await github.commentOnIssue(
+        issue.number,
+        `Пайплайн: фикс смержен в ${merged!.html_url} (не в default branch — GitHub issue сам не закрывает). Закрываю дочерний баг.`,
+      );
+      await github.closeIssue(issue.number);
+      jobLog(
+        logger,
+        { issue: issue.number, role: null, agentId: null, runId: null },
+        `closed child bug after merged PR #${merged!.number}`,
+      );
+    } catch (err) {
+      logger.error({ err, issue: issue.number }, "close merged child bug failed");
+    }
+  }
+}
+
+async function retargetChildPullIfNeeded(
+  github: GitHubClient,
+  logger: FastifyBaseLogger,
+  issue: GitHubIssue,
+): Promise<void> {
+  const parent = parseRelatedParentIssue(issue.body);
+  if (!parent) {
+    return;
+  }
+  try {
+    const parentPr = await github.findOpenFixPr(parent);
+    const childPr = await github.findOpenFixPr(issue.number);
+    if (!parentPr || !childPr || !parentPr.headRef) {
+      return;
+    }
+    if (childPr.baseRef === parentPr.headRef) {
+      return;
+    }
+    await github.retargetPullBase(childPr.number, parentPr.headRef);
+    await github.commentOnIssue(
+      issue.number,
+      `Пайплайн: base PR #${childPr.number} сменён на \`${parentPr.headRef}\` (ветка родителя #${parent}), не main.`,
+    );
+    jobLog(
+      logger,
+      { issue: issue.number, role: "developer", agentId: null, runId: null },
+      `retargeted PR #${childPr.number} base ${childPr.baseRef} → ${parentPr.headRef}`,
+    );
+  } catch (err) {
+    logger.error({ err, issue: issue.number }, "retarget child PR base failed");
+  }
 }
 
 async function applyReleasePackage(
@@ -263,6 +337,7 @@ async function handleIssue(
       } catch (err) {
         logger.error({ err, issue: issue.number }, "github labels failed");
       }
+      await retargetChildPullIfNeeded(github, logger, issue);
       return;
     }
   }
@@ -294,6 +369,19 @@ async function handleIssue(
     if (parent) {
       try {
         linkedPull = (await github.findOpenFixPr(parent)) ?? undefined;
+      } catch (err) {
+        logger.error({ err, issue: issue.number, parent }, "github parent PR lookup failed");
+      }
+    }
+  }
+  if (role === "developer") {
+    const parent = parseRelatedParentIssue(issue.body);
+    if (parent) {
+      try {
+        linkedPull = (await github.findOpenFixPr(parent)) ?? undefined;
+        if (linkedPull) {
+          jobLog(logger, fields, `child developer startingRef: ${linkedPull.headRef} (parent #${parent})`);
+        }
       } catch (err) {
         logger.error({ err, issue: issue.number, parent }, "github parent PR lookup failed");
       }
@@ -470,6 +558,9 @@ async function handleIssue(
       );
     } catch (err) {
       logger.error({ err, issue: issue.number }, "github labels failed");
+    }
+    if (developerDecision === "in-qa") {
+      await retargetChildPullIfNeeded(github, logger, issue);
     }
   }
 
