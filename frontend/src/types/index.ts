@@ -11,6 +11,8 @@ export type {
   GetItemResponse,
   PaginationMeta,
   ListItemsResponse,
+  ListItemsQuery,
+  TagsListResponse,
   SearchResultItem,
   SearchResponse,
 } from '@llm-app/shared';

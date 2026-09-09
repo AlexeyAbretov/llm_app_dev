@@ -18,6 +18,7 @@ export async function ensureCatalogIndexes(db: Db): Promise<void> {
       default_language: 'none',
     },
     { key: { status: 1, createdAt: -1 } },
+    { key: { status: 1, tags: 1 } },
     { key: { createdAt: -1 } },
   ]);
 }

@@ -63,10 +63,20 @@ async function buildTestApp() {
       },
     }),
     findById: async (id: string) => (id === sampleItem._id ? sampleItem : null),
-    findAll: async (page: number, limit: number) => ({
-      items: [sampleItem],
-      total: 1,
-    }),
+    findAll: async (page: number, limit: number, filterTags?: string[]) => {
+      if (filterTags?.length) {
+        const matches = filterTags.some((tag) => sampleItem.tags.includes(tag));
+        return {
+          items: matches ? [sampleItem] : [],
+          total: matches ? 1 : 0,
+        };
+      }
+      return {
+        items: [sampleItem],
+        total: 1,
+      };
+    },
+    findDistinctTags: async () => ['ваза', 'керамика'],
     findAllWithEmbeddings: async () => [sampleItem],
     textSearch: async (q: string) =>
       q.includes('ваза') || q.toLowerCase().includes('vase')
@@ -204,6 +214,57 @@ async function main(): Promise<void> {
     throw new Error('GET /api/items: embedding/embedText не должны быть в ответе');
   }
   console.log('GET /api/items → pagination meta ok');
+
+  const listWithTag = await app.inject({
+    method: 'GET',
+    url: '/api/items?page=1&limit=20&tags=ваза',
+  });
+  if (listWithTag.statusCode !== 200) {
+    throw new Error(`GET /api/items?tags=ваза: ${listWithTag.statusCode}`);
+  }
+  const listWithTagJson = JSON.parse(listWithTag.body) as { items: unknown[] };
+  if (listWithTagJson.items.length !== 1) {
+    throw new Error(`GET /api/items?tags=ваза: ожидался 1 item`);
+  }
+  console.log('GET /api/items?tags=ваза → фильтр ok');
+
+  const listWithMissingTag = await app.inject({
+    method: 'GET',
+    url: '/api/items?page=1&limit=20&tags=несуществующий-тег',
+  });
+  if (listWithMissingTag.statusCode !== 200) {
+    throw new Error(`GET /api/items?tags=missing: ${listWithMissingTag.statusCode}`);
+  }
+  const listWithMissingTagJson = JSON.parse(listWithMissingTag.body) as {
+    items: unknown[];
+    meta: { total: number };
+  };
+  if (listWithMissingTagJson.items.length !== 0 || listWithMissingTagJson.meta.total !== 0) {
+    throw new Error(`GET /api/items?tags=missing: ожидалась пустая выдача`);
+  }
+  console.log('GET /api/items?tags=missing → пустая выдача ok');
+
+  const invalidTag = await app.inject({
+    method: 'GET',
+    url: '/api/items?tags=!!!',
+  });
+  if (invalidTag.statusCode !== 400) {
+    throw new Error(`GET /api/items invalid tag: ожидался 400, получено ${invalidTag.statusCode}`);
+  }
+  console.log('GET /api/items?tags=!!! → 400');
+
+  const tagsList = await app.inject({
+    method: 'GET',
+    url: '/api/tags',
+  });
+  if (tagsList.statusCode !== 200) {
+    throw new Error(`GET /api/tags: ${tagsList.statusCode}`);
+  }
+  const tagsListJson = JSON.parse(tagsList.body) as { tags: string[] };
+  if (!Array.isArray(tagsListJson.tags) || !tagsListJson.tags.includes('ваза')) {
+    throw new Error(`GET /api/tags: ${tagsList.body}`);
+  }
+  console.log('GET /api/tags → distinct ok');
 
   const search = await app.inject({
     method: 'GET',

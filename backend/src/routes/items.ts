@@ -4,7 +4,12 @@ import type {
   CreateItemResponse,
   GetItemResponse,
   ListItemsResponse,
+  TagsListResponse,
 } from '@llm-app/shared';
+import {
+  normalizeFilterTags,
+  parseTagsQueryParam,
+} from '../utils/tagFilter.js';
 import {
   ALLOWED_MIMES,
   MAX_FILE_SIZE_BYTES,
@@ -116,6 +121,17 @@ export async function itemsRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.get('/api/tags', async (request, reply) => {
+    try {
+      const tags = await app.catalogRepository.findDistinctTags();
+      const body: TagsListResponse = { tags };
+      return reply.send(body);
+    } catch (error) {
+      request.log.error(error);
+      return sendError(reply, 500, 'Ошибка получения списка тегов');
+    }
+  });
+
   app.get<{ Params: { id: string } }>(
     '/api/items/:id/image',
     async (request, reply) => {
@@ -173,9 +189,9 @@ export async function itemsRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  app.get<{ Querystring: { page?: string; limit?: string } }>(
-    '/api/items',
-    async (request, reply) => {
+  app.get<{
+    Querystring: { page?: string; limit?: string; tags?: string | string[] };
+  }>('/api/items', async (request, reply) => {
       const page = parsePositiveInt(request.query.page, 1);
       const limit = parsePositiveInt(request.query.limit, 20);
 
@@ -183,10 +199,20 @@ export async function itemsRoutes(app: FastifyInstance): Promise<void> {
         return sendError(reply, 400, 'Параметры page и limit должны быть положительными числами');
       }
 
+      const rawTags = parseTagsQueryParam(request.query.tags);
+      const filterTags = normalizeFilterTags(rawTags);
+      if (filterTags === null) {
+        return sendError(reply, 400, 'Некорректный формат тега в параметре tags');
+      }
+
       const cappedLimit = Math.min(limit, 100);
 
       try {
-        const { items, total } = await app.catalogRepository.findAll(page, cappedLimit);
+        const { items, total } = await app.catalogRepository.findAll(
+          page,
+          cappedLimit,
+          filterTags.length ? filterTags : undefined,
+        );
         const totalPages = total === 0 ? 0 : Math.ceil(total / cappedLimit);
 
         const body: ListItemsResponse = {

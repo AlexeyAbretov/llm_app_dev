@@ -26,7 +26,7 @@ function extractJsonObject(raw: string): string {
   return match[0];
 }
 
-function slugifyTag(tag: string): string {
+export function slugifyTag(tag: string): string {
   return tag
     .trim()
     .toLowerCase()

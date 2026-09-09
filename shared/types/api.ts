@@ -24,9 +24,20 @@ export interface PaginationMeta {
   totalPages: number;
 }
 
+export interface ListItemsQuery {
+  page?: number;
+  limit?: number;
+  /** Фильтр по тегам (OR): comma-separated или повтор param. */
+  tags?: string | string[];
+}
+
 export interface ListItemsResponse {
   items: CatalogItemPublic[];
   meta: PaginationMeta;
+}
+
+export interface TagsListResponse {
+  tags: string[];
 }
 
 export interface SearchResultItem {
