@@ -8,9 +8,10 @@ function formatDate(iso: string): string {
 
 interface ItemCardProps {
   item: CatalogItemPublic;
+  onTagClick?: (tag: string) => void;
 }
 
-export function ItemCard({ item }: ItemCardProps) {
+export function ItemCard({ item, onTagClick }: ItemCardProps) {
   const title = item.title || 'Без названия';
   const visibleTags = mergeDisplayTags(item.tags, item.userTags).slice(0, 5);
 
@@ -37,11 +38,24 @@ export function ItemCard({ item }: ItemCardProps) {
         {visibleTags.length > 0 && (
           <ul className="flex flex-wrap gap-1">
             {visibleTags.map((tag) => (
-              <li
-                key={tag}
-                className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
-              >
-                {tag}
+              <li key={tag}>
+                {onTagClick ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onTagClick(tag);
+                    }}
+                    className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 transition-colors hover:bg-blue-100 hover:text-blue-800"
+                  >
+                    {tag}
+                  </button>
+                ) : (
+                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                    {tag}
+                  </span>
+                )}
               </li>
             ))}
           </ul>

@@ -16,7 +16,7 @@ const sampleItem: CatalogItem = {
   title: 'Тестовая ваза',
   description: 'Описание',
   tags: ['ваза'],
-  userTags: [],
+  userTags: ['коллекция'],
   embedText: 'ceramic vase decorative vessel',
   image: {
     storage: 'gridfs',
@@ -34,6 +34,12 @@ const sampleItem: CatalogItem = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
+
+function itemMatchesTags(item: CatalogItem, filterTags: string[]): boolean {
+  return filterTags.some(
+    (tag) => item.tags.includes(tag) || item.userTags.includes(tag),
+  );
+}
 
 function minimalJpeg(): Buffer {
   return Buffer.from([
@@ -77,10 +83,23 @@ async function buildTestApp(options?: { item?: CatalogItem }) {
       };
       return currentItem;
     },
-    findAll: async (page: number, limit: number) => ({
-      items: [currentItem],
-      total: 1,
-    }),
+    findAll: async (page: number, limit: number, filterTags?: string[]) => {
+      if (filterTags?.length) {
+        const matches = itemMatchesTags(currentItem, filterTags);
+        return {
+          items: matches ? [currentItem] : [],
+          total: matches ? 1 : 0,
+        };
+      }
+      return {
+        items: [currentItem],
+        total: 1,
+      };
+    },
+    findDistinctTags: async () => {
+      const all = [...currentItem.tags, ...currentItem.userTags];
+      return [...new Set(all)].sort();
+    },
     findAllWithEmbeddings: async () => [currentItem],
     textSearch: async (q: string) =>
       q.includes('ваза') || q.toLowerCase().includes('vase')
@@ -218,6 +237,74 @@ async function main(): Promise<void> {
     throw new Error('GET /api/items: embedding/embedText не должны быть в ответе');
   }
   console.log('GET /api/items → pagination meta ok');
+
+  const listWithTag = await app.inject({
+    method: 'GET',
+    url: '/api/items?page=1&limit=20&tags=ваза',
+  });
+  if (listWithTag.statusCode !== 200) {
+    throw new Error(`GET /api/items?tags=ваза: ${listWithTag.statusCode}`);
+  }
+  const listWithTagJson = JSON.parse(listWithTag.body) as { items: unknown[] };
+  if (listWithTagJson.items.length !== 1) {
+    throw new Error(`GET /api/items?tags=ваза: ожидался 1 item`);
+  }
+  console.log('GET /api/items?tags=ваза → фильтр ok');
+
+  const listWithUserTag = await app.inject({
+    method: 'GET',
+    url: '/api/items?page=1&limit=20&tags=коллекция',
+  });
+  if (listWithUserTag.statusCode !== 200) {
+    throw new Error(`GET /api/items?tags=коллекция: ${listWithUserTag.statusCode}`);
+  }
+  const listWithUserTagJson = JSON.parse(listWithUserTag.body) as { items: unknown[] };
+  if (listWithUserTagJson.items.length !== 1) {
+    throw new Error(`GET /api/items?tags=коллекция: ожидался 1 item`);
+  }
+  console.log('GET /api/items?tags=коллекция → фильтр userTags ok');
+
+  const listWithMissingTag = await app.inject({
+    method: 'GET',
+    url: '/api/items?page=1&limit=20&tags=несуществующий-тег',
+  });
+  if (listWithMissingTag.statusCode !== 200) {
+    throw new Error(`GET /api/items?tags=missing: ${listWithMissingTag.statusCode}`);
+  }
+  const listWithMissingTagJson = JSON.parse(listWithMissingTag.body) as {
+    items: unknown[];
+    meta: { total: number };
+  };
+  if (listWithMissingTagJson.items.length !== 0 || listWithMissingTagJson.meta.total !== 0) {
+    throw new Error(`GET /api/items?tags=missing: ожидалась пустая выдача`);
+  }
+  console.log('GET /api/items?tags=missing → пустая выдача ok');
+
+  const invalidTag = await app.inject({
+    method: 'GET',
+    url: '/api/items?tags=!!!',
+  });
+  if (invalidTag.statusCode !== 400) {
+    throw new Error(`GET /api/items invalid tag: ожидался 400, получено ${invalidTag.statusCode}`);
+  }
+  console.log('GET /api/items?tags=!!! → 400');
+
+  const tagsList = await app.inject({
+    method: 'GET',
+    url: '/api/tags',
+  });
+  if (tagsList.statusCode !== 200) {
+    throw new Error(`GET /api/tags: ${tagsList.statusCode}`);
+  }
+  const tagsListJson = JSON.parse(tagsList.body) as { tags: string[] };
+  if (
+    !Array.isArray(tagsListJson.tags) ||
+    !tagsListJson.tags.includes('ваза') ||
+    !tagsListJson.tags.includes('коллекция')
+  ) {
+    throw new Error(`GET /api/tags: ${tagsList.body}`);
+  }
+  console.log('GET /api/tags → distinct ok (tags + userTags)');
 
   const search = await app.inject({
     method: 'GET',

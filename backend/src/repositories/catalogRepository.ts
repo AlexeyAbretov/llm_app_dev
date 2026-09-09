@@ -56,8 +56,21 @@ export class CatalogRepository {
   async findAll(
     page: number,
     limit: number,
+    filterTags?: string[],
   ): Promise<{ items: CatalogItem[]; total: number }> {
-    const filter = { status: 'ready' as const };
+    const filter: {
+      status: 'ready';
+      $or?: Array<{ tags: { $in: string[] } } | { userTags: { $in: string[] } }>;
+    } = {
+      status: 'ready',
+    };
+
+    if (filterTags?.length) {
+      filter.$or = [
+        { tags: { $in: filterTags } },
+        { userTags: { $in: filterTags } },
+      ];
+    }
     const skip = (page - 1) * limit;
 
     const [docs, total] = await Promise.all([
@@ -74,6 +87,27 @@ export class CatalogRepository {
       items: docs.map(toCatalogItem),
       total,
     };
+  }
+
+  /** Уникальные теги ready-объектов: LLM (`tags`) + пользовательские (`userTags`). */
+  async findDistinctTags(): Promise<string[]> {
+    const docs = await this.collection
+      .aggregate<{ _id: string }>([
+        { $match: { status: 'ready' } },
+        {
+          $project: {
+            allTags: {
+              $concatArrays: ['$tags', { $ifNull: ['$userTags', []] }],
+            },
+          },
+        },
+        { $unwind: '$allTags' },
+        { $group: { _id: '$allTags' } },
+        { $sort: { _id: 1 } },
+      ])
+      .toArray();
+
+    return docs.map((doc) => doc._id);
   }
 
   async update(
