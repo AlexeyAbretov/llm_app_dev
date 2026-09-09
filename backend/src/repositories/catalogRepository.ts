@@ -25,6 +25,7 @@ export class CatalogRepository {
       title: '',
       description: '',
       tags: [],
+      userTags: [],
       embedText: '',
       image: data.image,
       embedding: [],
@@ -57,12 +58,18 @@ export class CatalogRepository {
     limit: number,
     filterTags?: string[],
   ): Promise<{ items: CatalogItem[]; total: number }> {
-    const filter: { status: 'ready'; tags?: { $in: string[] } } = {
+    const filter: {
+      status: 'ready';
+      $or?: Array<{ tags: { $in: string[] } } | { userTags: { $in: string[] } }>;
+    } = {
       status: 'ready',
     };
 
     if (filterTags?.length) {
-      filter.tags = { $in: filterTags };
+      filter.$or = [
+        { tags: { $in: filterTags } },
+        { userTags: { $in: filterTags } },
+      ];
     }
     const skip = (page - 1) * limit;
 
@@ -82,13 +89,20 @@ export class CatalogRepository {
     };
   }
 
-  /** Уникальные теги ready-объектов (LLM + пользовательские в поле tags). */
+  /** Уникальные теги ready-объектов: LLM (`tags`) + пользовательские (`userTags`). */
   async findDistinctTags(): Promise<string[]> {
     const docs = await this.collection
       .aggregate<{ _id: string }>([
         { $match: { status: 'ready' } },
-        { $unwind: '$tags' },
-        { $group: { _id: '$tags' } },
+        {
+          $project: {
+            allTags: {
+              $concatArrays: ['$tags', { $ifNull: ['$userTags', []] }],
+            },
+          },
+        },
+        { $unwind: '$allTags' },
+        { $group: { _id: '$allTags' } },
         { $sort: { _id: 1 } },
       ])
       .toArray();

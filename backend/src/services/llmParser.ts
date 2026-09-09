@@ -1,3 +1,4 @@
+import { slugifyTag } from '@llm-app/shared';
 import { z } from 'zod';
 
 export const visionResponseSchema = z.object({
@@ -24,16 +25,6 @@ function extractJsonObject(raw: string): string {
     throw new Error('JSON-объект не найден в ответе LLM');
   }
   return match[0];
-}
-
-export function slugifyTag(tag: string): string {
-  return tag
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-zа-яё0-9-]+/gu, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
 }
 
 function normalizeTags(parsed: unknown): unknown {

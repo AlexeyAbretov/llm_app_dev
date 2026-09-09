@@ -5,6 +5,8 @@ import type {
   GetItemResponse,
   ListItemsResponse,
   TagsListResponse,
+  UpdateUserTagsRequest,
+  UpdateUserTagsResponse,
 } from '@llm-app/shared';
 import {
   normalizeFilterTags,
@@ -19,9 +21,17 @@ import {
   openDownloadStream,
   readLegacyDiskBuffer,
 } from '../services/imageStorage.js';
+import {
+  updateUserTagsBodySchema,
+  validateUserTags,
+} from '../schemas/userTags.js';
 import { toPublicItem } from '../utils/toPublicItem.js';
 
-function sendError(reply: FastifyReply, status: 400 | 404 | 500, message: string) {
+function sendError(
+  reply: FastifyReply,
+  status: 400 | 404 | 409 | 500,
+  message: string,
+) {
   return reply.code(status).send({ error: message } satisfies ApiError);
 }
 
@@ -185,6 +195,49 @@ export async function itemsRoutes(app: FastifyInstance): Promise<void> {
       } catch (error) {
         request.log.error(error);
         return sendError(reply, 500, 'Ошибка получения объекта');
+      }
+    },
+  );
+
+  app.patch<{ Params: { id: string }; Body: UpdateUserTagsRequest }>(
+    '/api/items/:id/user-tags',
+    async (request, reply) => {
+      const parsed = updateUserTagsBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return sendError(reply, 400, 'Некорректное тело запроса');
+      }
+
+      try {
+        const item = await app.catalogRepository.findById(request.params.id);
+        if (!item) {
+          return sendError(reply, 404, 'Объект не найден');
+        }
+
+        if (item.status !== 'ready') {
+          return sendError(
+            reply,
+            409,
+            'Пользовательские теги доступны только после обработки объекта',
+          );
+        }
+
+        const validation = validateUserTags(parsed.data.userTags, item.tags);
+        if (!validation.ok) {
+          return sendError(reply, 400, validation.error);
+        }
+
+        const updated = await app.catalogRepository.update(request.params.id, {
+          userTags: validation.userTags,
+        });
+
+        if (!updated) {
+          return sendError(reply, 404, 'Объект не найден');
+        }
+
+        return reply.send(toPublicItem(updated) satisfies UpdateUserTagsResponse);
+      } catch (error) {
+        request.log.error(error);
+        return sendError(reply, 500, 'Ошибка обновления тегов');
       }
     },
   );

@@ -46,6 +46,14 @@ async function main() {
   }
   console.log('update:', updated.title, updated.status);
 
+  const withUserTags = await repo.update(created._id, {
+    userTags: ['коллекция', 'любимое'],
+  });
+  if (!withUserTags || withUserTags.userTags.length !== 2) {
+    throw new Error('update userTags не сохранил теги');
+  }
+  console.log('update userTags:', withUserTags.userTags.join(', '));
+
   for (let i = 0; i < 3; i++) {
     const item = await repo.create({
       image: {

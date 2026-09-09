@@ -54,3 +54,11 @@ export function apiPost<T>(path: string, body?: BodyInit, init?: RequestInit): P
     ...init,
   });
 }
+
+export function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  return apiRequest<T>(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}

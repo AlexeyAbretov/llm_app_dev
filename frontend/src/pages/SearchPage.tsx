@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { SearchResultsSkeleton } from '../components/SearchResultSkeleton';
 import { useSearch } from '../hooks/useSearch';
 import type { SearchResultItem } from '../types';
+import { mergeDisplayTags } from '../utils/tags';
 
 const DEBOUNCE_MS = 300;
 
@@ -12,6 +13,7 @@ function formatScore(score: number): string {
 
 function SearchResultRow({ result }: { result: SearchResultItem }) {
   const { item, score } = result;
+  const displayTags = mergeDisplayTags(item.tags, item.userTags);
 
   return (
     <Link
@@ -44,9 +46,9 @@ function SearchResultRow({ result }: { result: SearchResultItem }) {
         {item.description ? (
           <p className="line-clamp-2 text-sm text-gray-600">{item.description}</p>
         ) : null}
-        {item.tags.length > 0 ? (
+        {displayTags.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1">
-            {item.tags.map((tag) => (
+            {displayTags.map((tag) => (
               <span
                 key={tag}
                 className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
