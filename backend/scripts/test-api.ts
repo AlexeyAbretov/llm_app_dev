@@ -379,6 +379,18 @@ async function main(): Promise<void> {
 async function testUserTagsRoutes(): Promise<void> {
   const { app } = await buildTestApp();
 
+  const duplicateUser = await app.inject({
+    method: 'PATCH',
+    url: `/api/items/${sampleItem._id}/user-tags`,
+    payload: { userTags: ['коллекция', 'коллекция'] },
+  });
+  if (duplicateUser.statusCode !== 400) {
+    throw new Error(
+      `PATCH duplicate user tag: ожидался 400, получено ${duplicateUser.statusCode}`,
+    );
+  }
+  console.log('PATCH user-tags (duplicate user) → 400');
+
   const patchOk = await app.inject({
     method: 'PATCH',
     url: `/api/items/${sampleItem._id}/user-tags`,
