@@ -1,17 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CatalogGridSkeleton } from '../components/ItemCardSkeleton';
 import { ItemCard } from '../components/ItemCard';
 import { useItems } from '../hooks/useItems';
-
-function Spinner() {
-  return (
-    <div
-      className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"
-      role="status"
-      aria-label="Загрузка"
-    />
-  );
-}
 
 export function CatalogPage() {
   const [page, setPage] = useState(1);
@@ -19,12 +10,9 @@ export function CatalogPage() {
 
   if (isLoading) {
     return (
-      <section>
+      <section aria-busy="true" aria-label="Загрузка каталога">
         <h2 className="mb-6 text-2xl font-semibold">Каталог</h2>
-        <div className="flex items-center gap-3 text-gray-700">
-          <Spinner />
-          <p>Загрузка каталога…</p>
-        </div>
+        <CatalogGridSkeleton />
       </section>
     );
   }

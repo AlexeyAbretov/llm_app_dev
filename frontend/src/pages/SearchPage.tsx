@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SearchResultsSkeleton } from '../components/SearchResultSkeleton';
 import { useSearch } from '../hooks/useSearch';
 import type { SearchResultItem } from '../types';
 
@@ -99,9 +100,7 @@ export function SearchPage() {
         <p className="text-gray-500">Введите запрос для поиска по каталогу.</p>
       ) : null}
 
-      {isLoading ? (
-        <p className="text-gray-500">Поиск…</p>
-      ) : null}
+      {isLoading ? <SearchResultsSkeleton /> : null}
 
       {isError ? (
         <p className="text-red-600">

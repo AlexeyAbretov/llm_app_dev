@@ -147,7 +147,7 @@
 ### Шаги
 
 1. `services/ollama.ts`:
-   - `checkHealth()` → ping `/api/tags`
+   - `checkHealth()` → GET `/api/tags`, наличие vision/embed/translate моделей из конфига (точный тег)
    - `generateFromImage(imagePath, prompt)` → POST `/api/chat` с image
    - `generateEmbedding(text)` → POST `/api/embeddings`
 2. `services/imageStorage.ts`:
@@ -350,6 +350,8 @@
 
 ## Этап 10: Polish + финализация
 
+**Ветка:** `stage/10-polish`
+
 **Цель:** довести MVP до критериев готовности.
 
 ### Шаги
@@ -367,7 +369,7 @@
 ### Проверка
 
 - [ ] Новый разработчик по README поднимает проект за ≤15 мин
-- [ ] Все пункты §9 CONSTITUTION.md — ✅
+- [ ] Все пункты §9 CONSTITUTION.md — ✅ (локально: MongoDB + Ollama + demo flow)
 
 ---
 
