@@ -9,7 +9,7 @@
 | Компонент | Версия / примечание |
 |-----------|---------------------|
 | **Node.js** | ≥ 20 |
-| **Docker** | для MongoDB (`docker compose`) |
+| **Docker** | MongoDB; опционально backend + frontend (`docker compose --profile app`) |
 | **Ollama** | на хосте (не в Docker), нужен GPU; [ollama.com](https://ollama.com) |
 | **GPU** | рекомендуется 8 GB VRAM (RTX 4060 и аналоги) |
 
@@ -40,10 +40,48 @@ npm run dev
 
 Откройте http://localhost:5173 — в шапке индикатор «Система готова», если MongoDB и Ollama доступны.
 
+## Запуск в Docker (production-like)
+
+Ollama **остаётся на хосте** (GPU). В контейнерах — MongoDB, backend и frontend (nginx).
+
+```bash
+# 1. Модели Ollama на хосте (один раз)
+ollama pull qwen2.5vl:7b
+ollama pull nomic-embed-text
+ollama pull qwen2.5:0.5b
+
+# 2. Ollama на хосте (отдельный терминал)
+ollama serve
+
+# 3. Полный стек в Docker
+docker compose --profile app up -d --build
+```
+
+| Сервис | URL |
+|--------|-----|
+| UI | http://localhost:8080 |
+| API (напрямую) | http://localhost:3001 |
+| MongoDB | localhost:27017 |
+
+Переменные для контейнеров — в [`.env.docker.example`](.env.docker.example) (в `docker-compose.yml` уже заданы значения по умолчанию).
+
+Только MongoDB для локальной разработки (как раньше):
+
+```bash
+docker compose up -d mongo
+npm run dev
+```
+
+Остановка полного стека: `docker compose --profile app down`.
+
 ### Проверка health
 
 ```bash
+# dev (backend напрямую)
 curl -s http://localhost:3001/api/health | jq
+
+# docker (через nginx proxy)
+curl -s http://localhost:8080/api/health | jq
 # { "status": "ok", "mongo": true, "ollama": true }
 ```
 
