@@ -96,13 +96,12 @@ interface ChatResponse {
   };
 }
 
-/** Vision LLM: POST /api/chat с base64-изображением. */
-export async function generateFromImage(
-  imagePath: string,
+/** Vision LLM: POST /api/chat с base64-изображением из буфера. */
+export async function generateFromImageBuffer(
+  imageBuffer: Buffer,
   prompt: string = VISION_PROMPT_V1,
 ): Promise<string> {
   return withGpuMutex(async () => {
-    const imageBuffer = await readFile(imagePath);
     const base64 = await encodeImageForVision(imageBuffer);
 
     const response = await ollamaFetch(
@@ -134,6 +133,15 @@ export async function generateFromImage(
 
     return content;
   });
+}
+
+/** Vision LLM: POST /api/chat с base64-изображением из файла на диске. */
+export async function generateFromImage(
+  imagePath: string,
+  prompt: string = VISION_PROMPT_V1,
+): Promise<string> {
+  const imageBuffer = await readFile(imagePath);
+  return generateFromImageBuffer(imageBuffer, prompt);
 }
 
 interface EmbeddingsResponse {

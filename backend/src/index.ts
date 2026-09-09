@@ -1,8 +1,6 @@
-import { mkdir } from 'node:fs/promises';
 import multipart from '@fastify/multipart';
-import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
-import { config, uploadDir } from './config.js';
+import { config } from './config.js';
 import { createPipelineRunner } from './graph/runner.js';
 import { registerCors } from './plugins/cors.js';
 import { registerMongo } from './plugins/mongo.js';
@@ -35,11 +33,6 @@ async function buildApp() {
       fileSize: 10 * 1024 * 1024,
     },
   });
-  await app.register(fastifyStatic, {
-    root: uploadDir,
-    prefix: '/uploads/',
-    decorateReply: false,
-  });
   await app.register(healthRoutes);
   await app.register(itemsRoutes);
   await app.register(searchRoutes);
@@ -48,8 +41,6 @@ async function buildApp() {
 }
 
 async function start() {
-  await mkdir(uploadDir, { recursive: true });
-
   const app = await buildApp();
 
   try {

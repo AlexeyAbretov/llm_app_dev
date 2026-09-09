@@ -18,7 +18,7 @@ async function main() {
 
   const created = await repo.create({
     image: {
-      storage: 'disk',
+      storage: 'gridfs',
       ref: 'test/sample.jpg',
       mime: 'image/jpeg',
       originalName: 'sample.jpg',
@@ -49,7 +49,7 @@ async function main() {
   for (let i = 0; i < 3; i++) {
     const item = await repo.create({
       image: {
-        storage: 'disk',
+        storage: 'gridfs',
         ref: `test/page-${i}.jpg`,
         mime: 'image/jpeg',
         originalName: `page-${i}.jpg`,
