@@ -15,18 +15,10 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            pipeline/package-lock.json
+          cache-dependency-path: package-lock.json
       - name: Catalog workspaces
         run: |
           npm ci
           npm run build -w backend
           npm run build -w frontend
-          npm test --if-present
-      - name: Pipeline tsc
-        working-directory: pipeline
-        run: |
-          npm ci
-          npm run build
           npm test --if-present

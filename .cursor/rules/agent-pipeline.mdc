@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Агентный пайплайн
 
-Контракт: `docs/AGENT_PIPELINE.md`. Запуск: `docs/AGENT_PIPELINE_SETUP.md`. Этапы: `docs/AGENT_PIPELINE_PLAN.md`.
+Контракт и setup: репозиторий [multi_agents_development_pipeline](https://github.com/AlexeyAbretov/multi_agents_development_pipeline) (`docs/AGENT_PIPELINE.md`, `docs/AGENT_PIPELINE_SETUP.md`, `docs/AGENT_PIPELINE_PLAN.md`). В этом репо — stub в `docs/AGENT_PIPELINE.md`.
 
 ## Трек отдельно от каталога
 
