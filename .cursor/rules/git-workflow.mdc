@@ -10,25 +10,21 @@ alwaysApply: true
 ## Правила
 
 - **`main`** — только подтверждённый код
-- **Один этап каталога = одна ветка** `stage/N-short-name`
-- **Один этап пайплайна = одна ветка** `pipeline/N-short-name` (см. `docs/AGENT_PIPELINE_PLAN.md`)
+- **Один этап = одна ветка** `stage/N-short-name`
 - **Не мержить в `main`** без явного подтверждения пользователя
 - **Новый этап** — ветка от актуального `main` (после merge предыдущего)
-- Не смешивать `stage/*` и `pipeline/*` в одной ветке
 
 ## Перед началом этапа
 
 ```bash
 git checkout main
 git pull origin main
-git checkout -b stage/N-short-name   # каталог
-# или
-git checkout -b pipeline/N-short-name  # пайплайн
+git checkout -b stage/N-short-name
 ```
 
 ## После завершения этапа
 
-1. Прогнать чеклист «Проверка» из `docs/MVP_PLAN.md` или `docs/AGENT_PIPELINE_PLAN.md`
+1. Прогнать чеклист «Проверка» из `docs/MVP_PLAN.md`
 2. `git push -u origin <имя-ветки>`
 3. Сообщить пользователю: этап готов, жду подтверждения для merge
 4. Merge **только** по команде: «мержим», «этап готов», «ok»
@@ -44,4 +40,4 @@ git push origin main
 
 ## Имена веток
 
-См. `docs/MVP_PLAN.md` (каталог) и `docs/AGENT_PIPELINE_PLAN.md` (пайплайн), также `docs/CONSTITUTION.md` §3.2.
+См. `docs/MVP_PLAN.md` и `docs/CONSTITUTION.md` §3.2.

@@ -10,22 +10,19 @@
 |------|------------|
 | [docs/CONSTITUTION.md](docs/CONSTITUTION.md) | Принципы, архитектура, API, schema |
 | [docs/MVP_PLAN.md](docs/MVP_PLAN.md) | Этапы каталога (`stage/N-…`) |
-| [docs/AGENT_PIPELINE.md](docs/AGENT_PIPELINE.md) | Ссылка на репозиторий оркестратора |
 | [.cursor/rules/](.cursor/rules/) | Правила для Cursor |
-
-Агентный пайплайн (контракт, setup, план этапов): [multi_agents_development_pipeline](https://github.com/AlexeyAbretov/multi_agents_development_pipeline).
 
 ## Быстрый старт для агента
 
 1. Прочитать `docs/CONSTITUTION.md` — понять scope и ограничения
-2. Каталог: `docs/MVP_PLAN.md`. Пайплайн агентов — отдельный репозиторий (см. выше). Не смешивать треки в одной ветке.
-3. Ветка от `main`: `stage/N-...` (каталог)
+2. Каталог: `docs/MVP_PLAN.md`
+3. Ветка от `main`: `stage/N-...`
 4. Реализовать только текущий этап, не забегая вперёд
 5. Push ветки → проверить чеклист → **ждать подтверждения** перед merge в `main`
 
 ## Git-workflow
 
-- Один этап каталога = одна ветка `stage/…`
+- Один этап = одна ветка `stage/…`
 - Merge в `main` **только после явного подтверждения** пользователя
 - Подробнее: [CONSTITUTION.md §3](docs/CONSTITUTION.md#3-git-workflow)
 

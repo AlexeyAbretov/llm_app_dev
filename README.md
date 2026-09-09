@@ -78,4 +78,3 @@ React + TypeScript · Node.js + Fastify + LangGraph.js · Ollama · MongoDB
 - [Конституция проекта](docs/CONSTITUTION.md) — принципы, стек, критерии готовности MVP (§9)
 - [План MVP](docs/MVP_PLAN.md) — этапы каталога (`stage/N-…`)
 - [AGENTS.md](AGENTS.md) — команды и инструкции для AI-агента
-- [Агентный пайплайн](docs/AGENT_PIPELINE.md) — ссылка на внешний репозиторий оркестратора ([multi_agents_development_pipeline](https://github.com/AlexeyAbretov/multi_agents_development_pipeline))
